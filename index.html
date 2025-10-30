@@ -610,12 +610,12 @@
             slideDuration: 500,
             // performance-related toggles and caps
             performance: {
-                maxPixelRatio: deviceTier === 'low' ? 1.0 : (deviceTier === 'mid' ? 1.25 : 1.5),
+                maxPixelRatio: deviceTier === 'low' ? 1.25 : (deviceTier === 'mid' ? 1.5 : 2.0), // Increased for better quality
                 enableShadows: false, // disable shadows by default for better FPS
                 maxShadowMapSize: 1024,
-                ambientDustCount: deviceTier === 'low' ? 30 : (deviceTier === 'mid' ? 50 : 80),
+                ambientDustCount: deviceTier === 'low' ? 40 : (deviceTier === 'mid' ? 70 : 100), // Increased particle count
                 // particle and update tuning
-                particleBurstLimit: deviceTier === 'low' ? 6 : (deviceTier === 'mid' ? 10 : 12),
+                particleBurstLimit: deviceTier === 'low' ? 8 : (deviceTier === 'mid' ? 12 : 15), // More particles
                 particleUpdateSkip: deviceTier === 'low' ? 2 : 1, // skip every other frame on low-end
                 dustUpdateSkip: deviceTier === 'low' ? 2 : 1
             }
@@ -1273,8 +1273,9 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 6, 12);
             
-            // Reduce GPU load by capping devicePixelRatio and turning off expensive features by default
-            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
+            // Enable antialiasing for smoother visuals on modern devices
+            const useAA = deviceTier !== 'low'; // antialiasing on mid/high-end devices
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: useAA });
             // Compute initial pixel ratio and store in currentPixelRatio so adaptive code can adjust it
             const initialPR = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
             currentPixelRatio = initialPR;
@@ -2814,6 +2815,11 @@
                     // record that a touch-based input was just handled so pointer events that
                     // may follow (on some browsers) are ignored for a short window
                     try { lastTouchTime = performance.now(); } catch (e) { lastTouchTime = Date.now(); }
+                    
+                    // Reset touch start position for next swipe
+                    touchStartX = touchEndX;
+                    touchStartY = touchEndY;
+                    try { touchStartTs = performance.now(); } catch (ex) { touchStartTs = Date.now(); }
                 }
             });
 
