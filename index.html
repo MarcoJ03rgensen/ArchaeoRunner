@@ -1,0 +1,2721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANCIENT TEMPLE RUNNER - Marco Jørgensen</title>
+    <style>
+        :root {
+            --color-cream-50: rgba(252, 252, 249, 1);
+            --color-slate-900: rgba(19, 52, 59, 1);
+            --color-teal-500: rgba(33, 128, 141, 1);
+            --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            background: #1a1410;
+            overflow: hidden;
+            color: #2c1810;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            touch-action: none; /* prevent browser gestures while playing */
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+        }
+
+        #hud.active {
+            display: block;
+        }
+
+        .hud-item {
+            display: inline-block;
+            background: rgba(42, 30, 20, 0.9);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 2px solid rgba(210, 166, 121, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .hud-left {
+            float: left;
+        }
+
+        .hud-right {
+            float: right;
+        }
+
+        .hud-label {
+            font-size: 11px;
+            color: #d2a679;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .hud-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            /* center content vertically but leave a small safe inset */
+            justify-content: center;
+            align-items: center;
+            background: rgba(26, 20, 16, 0.95);
+            z-index: 10;
+            transition: opacity 0.3s ease;
+            /* small safe inset so the title won't hit the very top */
+            padding-top: 18px;
+            box-sizing: border-box;
+            overflow: hidden; /* prevent scrolling; content will scale instead */
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .title {
+            font-size: clamp(28px, 5.5vw, 56px);
+            font-weight: 700;
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 12px;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 4px 4px 8px rgba(0, 0, 0, 0.9);
+            letter-spacing: 2px;
+            padding: 0 12px;
+            text-transform: uppercase;
+            line-height: 1.05;
+            max-width: 92%;
+        }
+
+        .subtitle {
+            font-size: clamp(12px, 1.8vw, 18px);
+            color: #d2a679;
+            text-align: center;
+            margin-bottom: 18px;
+            max-width: 86%;
+            line-height: 1.45;
+            padding: 0 12px;
+        }
+
+        .instructions {
+            background: rgba(244, 232, 208, 0.08);
+            border: 2px solid rgba(210, 166, 121, 0.28);
+            border-radius: 10px;
+            padding: clamp(12px, 1.6vh, 20px) clamp(14px, 2.4vw, 30px);
+            margin: 12px;
+            max-width: clamp(300px, 64vw, 520px);
+            backdrop-filter: blur(6px);
+        }
+
+        .instruction-item {
+            color: #f4e8d0;
+            font-size: 15px;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .instruction-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(210, 105, 30, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .start-button {
+            background: linear-gradient(135deg, #d2691e, #a0522d);
+            color: #f4e8d0;
+            border: 3px solid rgba(244, 232, 208, 0.4);
+            padding: clamp(10px, 1.6vh, 18px) clamp(18px, 4vw, 45px);
+            font-size: clamp(14px, 2.6vw, 20px);
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
+            margin-top: 18px;
+            min-width: 160px;
+        }
+
+        .start-button:hover {
+            background: linear-gradient(135deg, #ff7f50, #d2691e);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .start-button:active {
+            transform: translateY(0);
+        }
+
+        .game-over-content {
+            text-align: center;
+        }
+
+        .final-score {
+            font-size: 24px;
+            color: #f4e8d0;
+            margin: 25px 0;
+        }
+
+        .score-label {
+            font-size: 14px;
+            color: #d2a679;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .score-value {
+            font-size: 52px;
+            font-weight: 700;
+            color: #d2691e;
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+        }
+
+        .medal-container {
+            margin: 35px 0;
+        }
+
+        .medal {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            border: 4px solid rgba(244, 232, 208, 0.3);
+        }
+
+        .medal.bronze {
+            background: linear-gradient(135deg, #CD7F32, #8B5A2B);
+        }
+
+        .medal.silver {
+            background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+        }
+
+        .medal.gold {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+        }
+
+        .restart-hint {
+            color: #d2a679;
+            font-size: 15px;
+            margin-top: 20px;
+            font-style: italic;
+        }
+
+        /* Shop styles */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            width: 90%;
+            max-width: 1100px;
+            margin-top: 18px;
+        }
+
+        .shop-item {
+            background: rgba(34,24,18,0.95);
+            border: 2px solid rgba(210,166,121,0.25);
+            padding: 12px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .avatar-preview {
+            width: 84px;
+            height: 84px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #222 0%, #444 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Rich avatar preview (face + body + arms) */
+        .avatar-face { width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; position:relative; }
+        .avatar-eye { width:6px; height:6px; border-radius:50%; background:#111; position:absolute; top:18px; }
+        .avatar-eye.left { left:14px; }
+        .avatar-eye.right { right:14px; }
+        .avatar-mouth { width:12px; height:6px; border-radius:6px; background:#5a2f1a; position:absolute; bottom:10px; }
+        .avatar-body { width:46px; height:34px; border-radius:6px; position:absolute; bottom:6px; }
+        .avatar-arm { width:10px; height:26px; border-radius:6px; position:absolute; top:36px; }
+        .avatar-arm.left { left:4px; }
+        .avatar-arm.right { right:4px; }
+
+        .shop-item.selected { border-color: rgba(255,215,0,0.85); box-shadow: 0 8px 30px rgba(255,215,0,0.06) inset; }
+
+        .avatar-head { width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 10px; }
+        .avatar-body { width: 46px; height: 40px; border-radius: 6px; position: absolute; top: 40px; }
+        .avatar-hat { width: 44px; height: 14px; border-radius: 6px; position: absolute; top: 2px; }
+
+        .shop-name { font-size: 13px; color: #f4e8d0; font-weight: 600; text-align:center }
+        .shop-cost { font-size: 12px; color: #d2a679 }
+
+        .shop-controls { display:flex; gap:8px; width:100%; justify-content:center }
+        .btn-small { padding:6px 10px; border-radius:8px; border: none; cursor:pointer; font-weight:600 }
+        .btn-buy { background: linear-gradient(135deg,#d2691e,#a0522d); color: #f4e8d0 }
+        .btn-select { background: rgba(210,166,121,0.12); color: #d2a679 }
+
+    /* Selected state for select button */
+    .btn-selected { background: linear-gradient(135deg,#ffd27a,#c78b45); color: #2c1a10; border: none; }
+
+        .owned-badge { background: rgba(34,34,34,0.85); color:#d2a679; padding:4px 8px; border-radius:8px; font-size:12px }
+
+        /* Floating shop button - always visible between runs (start/gameover) */
+        .floating-shop {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 60;
+            width: 56px;
+            height: 56px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            background: linear-gradient(135deg, #d2691e, #a0522d);
+            color: #f4e8d0;
+            border: 3px solid rgba(244, 232, 208, 0.4);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            pointer-events: auto;
+        }
+        .floating-shop:active { transform: translateY(2px); }
+
+        /* Touch controls (mobile) */
+        .touch-controls {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 10px;
+            z-index: 70;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 12px;
+            pointer-events: none; /* child buttons will enable pointer-events */
+        }
+
+        .touch-controls .group {
+            display:flex;
+            gap:12px;
+            pointer-events: auto;
+            align-items: center;
+        }
+
+        .touch-button {
+            width: 64px;
+            height: 64px;
+            border-radius: 14px;
+            background: rgba(34,24,18,0.92);
+            color: #FFD700;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(244,232,208,0.15);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+            touch-action: none;
+            user-select: none;
+        }
+
+        .touch-button.large { width: 84px; height: 84px; font-size: 28px; }
+
+        @media (min-width: 769px) {
+            /* hide touch controls on larger screens */
+            .touch-controls { display: none !important; }
+        }
+
+        @media (max-width: 480px) {
+            .floating-shop { width:48px; height:48px; font-size:18px; right:12px; bottom:12px; }
+        }
+
+        @media (max-width: 768px) {
+            .title { font-size: clamp(20px, 8.5vw, 40px); }
+            .hud-item { padding: 8px 12px; }
+            .hud-value { font-size: 20px; }
+            .start-button { min-width: 140px; }
+            .instructions { padding: 10px 14px; }
+        }
+
+        /* On short viewports reduce sizes and spacing so everything fits without scrolling */
+        @media (max-height: 720px) {
+            .title { font-size: clamp(18px, 6.5vw, 34px); margin-bottom:8px; }
+            .subtitle { font-size: 13px; margin-bottom:8px; }
+            .instructions { padding: 8px 12px; max-width: 92%; }
+            .start-button { padding: 8px 12px; font-size: 14px; min-width: 120px; }
+            #totalCoinsStart, #bestStart { transform: scale(0.95); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+    <!-- Floating shop button (always visible between runs) -->
+    <button id="floatingShopBtn" class="floating-shop" title="Shop">🏺</button>
+        <!-- Touch controls (mobile) -->
+        <div id="touchControls" class="touch-controls" aria-hidden="true">
+            <div class="group" id="touchLeftGroup">
+                <button id="touchLeft" class="touch-button" aria-label="Left">◀</button>
+                <button id="touchRight" class="touch-button" aria-label="Right">▶</button>
+            </div>
+            <div class="group" id="touchRightGroup">
+                <button id="touchJump" class="touch-button large" aria-label="Jump">⬆</button>
+                <button id="touchSlide" class="touch-button" aria-label="Slide">⬇</button>
+            </div>
+        </div>
+        
+        <div id="hud">
+            <div class="hud-item hud-left">
+                <div class="hud-label">Score</div>
+                <div class="hud-value" id="scoreValue">0</div>
+            </div>
+            <div class="hud-item" style="position: absolute; left: 50%; transform: translateX(-50%);">
+                <div class="hud-label">Distance</div>
+                <div class="hud-value" id="distanceValue">0m</div>
+            </div>
+            <div class="hud-item hud-right">
+                <div class="hud-label">Coins</div>
+                <div class="hud-value" id="coinsValue">✦ 0</div>
+            </div>
+        </div>
+        
+        <div id="startScreen" class="overlay">
+            <h1 class="title">ArchaeoRunner</h1>
+            <p class="subtitle">Explore the Temple of Eternal Gold</p>
+            <div id="totalCoinsStart" class="hud-item" style="margin-top:14px; pointer-events: auto;">
+                <div class="hud-label">Total Coins</div>
+                <div class="hud-value" id="totalCoinsStartValue">✦ 0</div>
+            </div>
+            <div id="bestStart" class="hud-item" style="margin-top:8px; pointer-events: auto;">
+                <div class="hud-label">Best Distance</div>
+                <div class="hud-value" id="bestStartValue">0m</div>
+            </div>
+            <div class="instructions">
+                <div class="instruction-item">
+                    <span class="instruction-icon">⬅️</span>
+                    <span>SWIPE LEFT/RIGHT or Arrow Keys to switch lanes</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">⬆️</span>
+                    <span>SWIPE UP or SPACE to JUMP over obstacles</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">⬇️</span>
+                    <span>SWIPE DOWN or SHIFT to SLIDE under barriers</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-icon">🏺</span>
+                    <span>Collect golden artifacts across all lanes</span>
+                </div>
+            </div>
+            <button class="start-button" onclick="startGame()">TAP TO START</button>
+            
+        </div>
+
+        <div id="gameOverScreen" class="overlay hidden">
+            <div class="game-over-content">
+                <h1 class="title">Expedition Complete</h1>
+                <div class="final-score">
+                    <div class="score-label">Distance Traveled</div>
+                    <div class="score-value" id="finalScore">0</div>m
+                </div>
+                <div class="final-score" style="font-size: 20px; margin-top: 10px;">
+                    <div class="score-label" style="font-size: 12px;">Coins Collected</div>
+                    <div class="score-value" id="treasureScore" style="font-size: 36px;">0</div>
+                </div>
+                <div class="final-score" style="font-size: 18px; margin-top: 6px;">
+                    <div class="score-label" style="font-size: 12px;">Total Coins</div>
+                    <div class="score-value" id="totalCoinsDisplay" style="font-size: 28px;">✦ 0</div>
+                </div>
+                <div class="final-score" style="font-size: 18px; margin-top: 6px;">
+                    <div class="score-label" style="font-size: 12px;">Best Distance</div>
+                    <div class="score-value" id="bestDisplayValue" style="font-size: 28px;">0m</div>
+                </div>
+                <div class="medal-container" id="medalContainer"></div>
+                <button class="start-button" onclick="restartGame()">New Expedition</button>
+                <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+                    <p class="restart-hint">Press R or SPACE to restart</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shop overlay -->
+        <div id="shopScreen" class="overlay hidden">
+            <h2 class="title" style="font-size:40px; margin-bottom:6px;">Character Shop</h2>
+            <div class="subtitle" style="margin-bottom:6px;">Pick a character or buy new ones with your total coins.</div>
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:6px;">
+                <div class="hud-item" style="pointer-events:auto;">
+                    <div class="hud-label">Total Coins</div>
+                    <div class="hud-value" id="shopTotalCoins">✦ 0</div>
+                </div>
+                <div class="hud-item" style="pointer-events:auto;">
+                    <div class="hud-label">Selected</div>
+                    <div class="hud-value" id="shopSelectedName">Explorer</div>
+                </div>
+                <button class="start-button" onclick="closeShop()">Close</button>
+            </div>
+            <div id="shopGrid" class="shop-grid"></div>
+        </div>
+    </div>
+
+    <!-- Load Three.js as a global (fallback for environments where module import may fail) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+    <script type="text/javascript">
+        // DOM elements
+        const canvas = document.getElementById('gameCanvas');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+    const floatingShopBtn = document.getElementById('floatingShopBtn');
+        const hud = document.getElementById('hud');
+        const distanceValue = document.getElementById('distanceValue');
+        const scoreValue = document.getElementById('scoreValue');
+        const coinsValue = document.getElementById('coinsValue');
+
+        // Three.js variables
+        let scene, camera, renderer;
+    // detect touch-capable/mobile devices for responsive behavior
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        let playerGroup;
+        let corridorSegments = [];
+        let torchLights = [];
+        let columns = [];
+
+        // Game configuration
+        const LANES = {
+            LEFT: -4,
+            CENTER: 0,
+            RIGHT: 4
+        };
+        
+        const config = {
+            gravity: 0.02,
+            jumpVelocity: 0.5,
+            scrollSpeed: 0.4,
+            scrollSpeedMax: 1.0,
+            scrollAcceleration: 0.00005,
+            corridorWidth: 12,
+            corridorHeight: 25,
+            segmentLength: 50,
+            laneSwitchDuration: 200,
+            slideDuration: 500
+        ,
+            // performance-related toggles and caps
+            performance: {
+                maxPixelRatio: 1.5, // cap DPR to avoid high GPU loads on retina displays
+                enableShadows: false, // disable shadows by default for better FPS
+                maxShadowMapSize: 1024,
+                ambientDustCount: 80 // reduce ambient particles
+            }
+        };
+
+        // Game state
+        let gameState = 'start';
+        let distance = 0;
+        let score = 0;
+        let coins = 0;
+        let frameCount = 0;
+        let scrollSpeed = config.scrollSpeed;
+        let obstacles = [];
+        let collectibles = [];
+        let particles = [];
+        let playerVelocity = 0;
+        let isJumping = false;
+        let isSliding = false;
+        let currentLane = 'CENTER';
+    let targetLaneX = LANES.CENTER;
+    let laneSwitchProgress = 0;
+    let startLaneX = 0;
+    // Rainbow mode: triggers every 2500m and lasts for 500m
+    let nextRainbowAt = 2500;
+    let rainbowModeActive = false;
+    let rainbowModeEndDistance = 0;
+
+    // End rainbow mode and restore any material colors/emissives that were changed.
+    function endRainbowMode() {
+        try {
+            if (!scene) {
+                rainbowModeActive = false;
+                return;
+            }
+            scene.traverse((node) => {
+                if (node.isMesh && node.material) {
+                    const mats = Array.isArray(node.material) ? node.material : [node.material];
+                    mats.forEach((m) => {
+                        try {
+                            if (m.userData && typeof m.userData._origColor !== 'undefined' && m.userData._origColor !== null && m.color) {
+                                m.color.setHex(m.userData._origColor);
+                            }
+                            if (m.userData && typeof m.userData._origEmissive !== 'undefined' && m.userData._origEmissive !== null && m.emissive) {
+                                m.emissive.setHex(m.userData._origEmissive);
+                            }
+                        } catch (e) { /* ignore per-material restore errors */ }
+                    });
+                }
+            });
+        } catch (e) {
+            console.warn('endRainbowMode error', e);
+        } finally {
+            rainbowModeActive = false;
+            rainbowModeEndDistance = 0;
+        }
+    }
+    // timestamp when the current lane switch began (ms). 0 = no active switch
+    let laneSwitchStartTime = 0;
+        let slideTimer = 0;
+        
+        // Touch/swipe variables
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+    // Persistent storage key and totals
+    const STORAGE_KEY = 'ancientTemple_save_v1';
+    let totalCollected = 0; // persistent total coins across sessions
+    let bestDistance = 0;
+    let bestScore = 0;
+        let ownedCharacters = [];
+        let selectedCharacterId = null;
+
+        // Default base character
+        const defaultCharacter = {
+            id: 'char_default',
+            name: 'Explorer',
+            skin: 0xD2B48C,
+            body: 0x8B7355,
+            hat: 0x654321,
+            accessory: null,
+            cost: 0
+        };
+
+        function loadSave() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (data) {
+                    if (typeof data.totalCoins === 'number') totalCollected = data.totalCoins;
+                    if (typeof data.bestDistance === 'number') bestDistance = data.bestDistance;
+                    if (typeof data.bestScore === 'number') bestScore = data.bestScore;
+                    if (Array.isArray(data.ownedCharacters)) ownedCharacters = data.ownedCharacters;
+                    if (typeof data.selectedCharacterId === 'string') selectedCharacterId = data.selectedCharacterId;
+                }
+            } catch (err) {
+                console.warn('Failed to load save:', err);
+            }
+        }
+
+        function saveData() {
+            try {
+                const payload = {
+                    totalCoins: totalCollected,
+                    bestDistance: bestDistance,
+                    bestScore: bestScore,
+                    ownedCharacters: ownedCharacters,
+                    selectedCharacterId: selectedCharacterId,
+                    lastSession: {
+                        coins: coins,
+                        distance: Math.floor(distance),
+                        timestamp: Date.now()
+                    }
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (err) {
+                console.warn('Failed to save game data:', err);
+            }
+        }
+
+        function updateTotalUI() {
+            const startEl = document.getElementById('totalCoinsStartValue');
+            const displayEl = document.getElementById('totalCoinsDisplay');
+            const bestStartEl = document.getElementById('bestStartValue');
+            const bestDisplayEl = document.getElementById('bestDisplayValue');
+            if (startEl) startEl.textContent = '✦ ' + totalCollected;
+            if (displayEl) displayEl.textContent = '✦ ' + totalCollected;
+            if (bestStartEl) bestStartEl.textContent = Math.floor(bestDistance) + 'm';
+            if (bestDisplayEl) bestDisplayEl.textContent = Math.floor(bestDistance) + 'm';
+        }
+
+        // Load saved totals immediately so UI shows correct balance on start screen
+        loadSave();
+        // ensure defaults if no save data
+        if (!ownedCharacters || ownedCharacters.length === 0) {
+            ownedCharacters = [defaultCharacter];
+        }
+        if (!selectedCharacterId) {
+            selectedCharacterId = defaultCharacter.id;
+        }
+        updateTotalUI();
+    // ensure floating shop visibility matches initial state
+    try { updateFloatingShopVisibility(); } catch(e) { /* ignore if function not ready */ }
+
+        // --- Shop logic ---
+        function generateVariants(base) {
+            // produce 10 creative variants derived from base colors
+            const variants = [];
+            const palettes = [
+                {name:'Desert Scout', skin:base.skin, body:0xA46A2A, hat:0x7A4B2A, accessory:'scarf', cost: 2000},
+                {name:'Sun Priest', skin:0xEAC28A, body:0x5C3A21, hat:0xFFD700, accessory:null, cost: 5000},
+                {name:'Temple Guard', skin:0xD1A07A, body:0x3B3B3B, hat:0x8B4513, accessory:'goggles', cost: 15000},
+                {name:'Gold Seeker', skin:0xD2B48C, body:0x8B7355, hat:0xDAA520, accessory:null, cost: 30000},
+                {name:'Cairn Runner', skin:0xC9A67A, body:0x6B4F37, hat:0x4B3621, accessory:'scarf', cost: 45000},
+                {name:'Astral Nomad', skin:0xE8CDB0, body:0x3A5A9A, hat:0x1E3A8A, accessory:null, cost: 80000},
+                {name:'Bronze Captain', skin:0xD2B48C, body:0x8B5A2B, hat:0xCD7F32, accessory:null, cost: 12000},
+                {name:'Midnight Ranger', skin:0xD2B48C, body:0x2D2F36, hat:0x111827, accessory:'goggles', cost: 90000},
+                {name:'Azure Scout', skin:0xE0C9A6, body:0x1E3A8A, hat:0x4169E1, accessory:null, cost: 25000},
+                {name:'Pharaohs Shadow', skin:0xD1B083, body:0x5C4033, hat:0x6B4B1F, accessory:null, cost: 200000}
+            ];
+
+            // Use deterministic ids based on the palette name + colors so variants remain stable across renders.
+            for (let i = 0; i < 10; i++) {
+                const p = palettes[i % palettes.length];
+                const baseNameKey = (p.name || 'var').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                const id = `variant_${baseNameKey}_${(p.hat || 0).toString(16)}_${(p.body || 0).toString(16)}_${i}`;
+                variants.push({
+                    id,
+                    name: p.name + (i>0?(' '+(i+1)):'') ,
+                    skin: p.skin || base.skin,
+                    body: p.body || base.body,
+                    hat: p.hat || base.hat,
+                    accessory: p.accessory || null,
+                    cost: p.cost || 10
+                });
+            }
+            return variants;
+        }
+
+        function openShop() {
+            const shop = document.getElementById('shopScreen');
+            shop.classList.remove('hidden');
+            document.getElementById('shopTotalCoins').textContent = '✦ ' + totalCollected;
+            renderShopOptions();
+            // reflect current selection in the header
+            const sel = ownedCharacters.find(c => c.id === selectedCharacterId) || defaultCharacter;
+            const selNameEl = document.getElementById('shopSelectedName');
+            if (selNameEl) selNameEl.textContent = sel.name;
+        }
+
+        function closeShop() {
+            const shop = document.getElementById('shopScreen');
+            shop.classList.add('hidden');
+        }
+
+        // Create a small Three.js avatar thumbnail for the shop cards.
+        // This uses the same basic geometry as the in-game avatar but renders a front-facing still image.
+        // Helper: build a hat matching the character style & hat color so thumbnails match in-game
+        function makeHat(opt, forThumbnail = false) {
+            const hatGroup = new THREE.Group();
+            const hatColor = opt.hat || 0x654321;
+            const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.9 });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.25, metalness: 0.85 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+            const name = (opt.name || '').toLowerCase();
+
+            // Helper to mark type for placement logic
+            function mark(type) { hatGroup.userData = hatGroup.userData || {}; hatGroup.userData.type = type; }
+
+            // Preserve original Explorer hat (explicit match by name or id)
+            if (name.includes('explor') || (opt.id && opt.id === defaultCharacter.id)) {
+                const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.07, 12), hatMat);
+                brim.position.y = 0.28;
+                hatGroup.add(brim);
+                const top = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.32, 12), hatMat);
+                top.position.y = 0.54;
+                hatGroup.add(top);
+                mark('brim');
+            }
+            // Priest/Pharaoh -> crown-like headpiece
+            else if (name.includes('priest') || name.includes('pharaoh')) {
+                const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.38, 12), hatMat);
+                crown.position.y = 0.18;
+                hatGroup.add(crown);
+                const band = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.42), goldMat);
+                band.position.y = 0.02;
+                hatGroup.add(band);
+                mark('crown');
+            }
+            // Guard/Ranger/Midnight -> helmet style with a small brim
+            else if (name.includes('guard') || name.includes('ranger') || name.includes('midnight')) {
+                // Helmet: use a hemisphere so the helmet sits flush on the head.
+                // Compute local bounding boxes for the hemi and the brim and align them
+                // so the hemisphere base meets the brim reliably on all browsers/segments.
+                const hemi = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), hatMat);
+                const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 12), darkMat);
+
+                try {
+                    // Ensure geometries have bounding boxes computed so we can align by geometry extents
+                    hemi.geometry.computeBoundingBox();
+                    brim.geometry.computeBoundingBox();
+
+                    // CylinderGeometry is centered at origin; its height is the difference between bbox max/min
+                    const brimHeight = brim.geometry.boundingBox.max.y - brim.geometry.boundingBox.min.y;
+                    const brimHalf = brimHeight / 2;
+
+                    // Place the brim so its center is slightly below the group's origin (so brim bottom is negative)
+                    brim.position.y = -brimHalf;
+
+                    // The hemisphere geometry's min Y (local) should be >= 0 for a top-half sphere, but compute anyway
+                    const hemiMinLocal = hemi.geometry.boundingBox.min.y;
+
+                    // Position the hemisphere so its local bottom aligns with the top of the brim
+                    // brim.position.y + brimHalf is the brim's local top Y in the hatGroup space
+                    hemi.position.y = brim.position.y + brimHalf - hemiMinLocal + 0.002; // tiny gap to avoid z-fighting
+                } catch (e) {
+                    // Fallback to previous heuristics if any geometry ops fail
+                    hemi.position.y = 0.22;
+                    brim.position.y = -0.06;
+                }
+
+                hatGroup.add(hemi);
+                hatGroup.add(brim);
+                mark('helmet');
+            }
+            // Scout/Seeker/Captain/Nomad/Azure/Bronze -> wide-brimmed traveler hat (default for many)
+            else if (name.includes('scout') || name.includes('seeker') || name.includes('captain') || name.includes('nomad') || name.includes('azure') || name.includes('bronze')) {
+                const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.08, 12), hatMat);
+                brim.position.y = 0.28;
+                hatGroup.add(brim);
+                const top = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.32, 12), hatMat);
+                top.position.y = 0.54;
+                hatGroup.add(top);
+                mark('brim');
+            }
+            // Some variants should be hair (sit tighter to the head) - classify as hat here
+            else if (name.includes('nomad') || name.includes('runner') || name.includes('nomad') || name.includes('azure') || name.includes('bronze')) {
+                // simple back-hair and fringe block
+                const hairMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.85 });
+                const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.5, 0.32), hairMat);
+                hairBack.position.set(0, 0.0, -0.08);
+                hairBack.rotation.x = 0.05;
+                hatGroup.add(hairBack);
+                const fringe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.12), hairMat);
+                fringe.position.set(0, 0.14, 0.22);
+                hatGroup.add(fringe);
+                mark('hair');
+            }
+            // Fallback cap
+            else {
+                const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.18, 12), hatMat);
+                cap.position.y = 0.25;
+                hatGroup.add(cap);
+                mark('cap');
+            }
+
+            return hatGroup;
+        }
+
+        function createAvatarThumbnail(opt, w = 140, h = 140) {
+            try {
+                const thumbScene = new THREE.Scene();
+                const cam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+                cam.position.set(0, 1.6, 2.6);
+                cam.lookAt(0, 1.2, 0);
+
+                const amb = new THREE.AmbientLight(0xFFFFFF, 0.6);
+                thumbScene.add(amb);
+                const dir = new THREE.DirectionalLight(0xFFF4D9, 0.8);
+                dir.position.set(2, 5, 2);
+                thumbScene.add(dir);
+
+                // torso
+                const matBody = new THREE.MeshStandardMaterial({ color: opt.body || 0x8B7355, roughness: 0.7 });
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.5), matBody);
+                torso.position.y = 0.9;
+                thumbScene.add(torso);
+
+                // head (front-facing) with simple facial detail for the picker
+                const matSkin = new THREE.MeshStandardMaterial({ color: opt.skin || 0xD2B48C, roughness: 0.6 });
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), matSkin);
+                head.position.set(0, 1.6, 0.02);
+                thumbScene.add(head);
+
+                // simple eyes and mouth - only shown in the thumbnail (front view)
+                const eyeMat = new THREE.MeshStandardMaterial({ color: 0x101010, roughness: 0.8 });
+                const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), eyeMat);
+                eyeL.position.set(-0.11, 1.62, 0.36);
+                thumbScene.add(eyeL);
+                const eyeR = eyeL.clone(); eyeR.position.x = 0.11; thumbScene.add(eyeR);
+
+                const mouthMat = new THREE.MeshStandardMaterial({ color: 0x4b2f2f, roughness: 0.9 });
+                const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.02), mouthMat);
+                mouth.position.set(0, 1.48, 0.36);
+                thumbScene.add(mouth);
+
+                // hat (use same hat builder so thumbnail matches the in-game character)
+                const hatGroup = makeHat(opt, true);
+                // Align hat base to head using bounding box so thumbnails match in-game placement
+                try {
+                    // add temporarily so setFromObject can compute bounds
+                    thumbScene.add(hatGroup);
+                    hatGroup.updateMatrixWorld(true);
+                    const hatBox = new THREE.Box3().setFromObject(hatGroup);
+                    const hatBottom = hatBox.min.y;
+
+                    const headY = 1.6; // head position in thumbnail scene
+                    const headRadius = 0.38; // sphere radius used above
+                    const hatType = (hatGroup.userData && hatGroup.userData.type) ? hatGroup.userData.type : 'cap';
+
+                    let desiredBaseY = headY + 0.02; // default slightly above head
+                    if (hatType === 'hair') desiredBaseY = headY - 0.06; // hair sits tighter
+                    else if (hatType === 'crown') desiredBaseY = headY + 0.05;
+
+                    const offsetY = desiredBaseY - hatBottom;
+                    hatGroup.position.x = 0;
+                    hatGroup.position.z = 0.02;
+                    hatGroup.position.y += offsetY;
+                    hatGroup.rotation.set(0, 0, 0);
+                } catch (err) {
+                    // fallback to previous hard-coded placement if something goes wrong
+                    if (!hatGroup.parent) thumbScene.add(hatGroup);
+                    hatGroup.position.set(0, 1.9, 0.02);
+                }
+
+                // arms (attached closely to torso so they look integrated)
+                const armMat = matBody;
+                const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.72, 0.22), armMat);
+                leftArm.position.set(-0.62, 1.12, 0);
+                leftArm.rotation.z = 0.05;
+                thumbScene.add(leftArm);
+                const rightArm = leftArm.clone(); rightArm.position.x = 0.62; rightArm.rotation.z = -0.05; thumbScene.add(rightArm);
+
+                // legs
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x4b3b2b, roughness: 0.9 });
+                const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.9, 0.28), legMat);
+                leftLeg.position.set(-0.22, 0.0, 0);
+                thumbScene.add(leftLeg);
+                const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.22; thumbScene.add(rightLeg);
+
+                // accessory: scarf or goggles shown front-facing
+                if (opt.accessory === 'scarf') {
+                    const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.18), new THREE.MeshStandardMaterial({ color: 0xB22222 }));
+                    scarf.position.set(0, 1.02, 0.28);
+                    thumbScene.add(scarf);
+                } else if (opt.accessory === 'goggles') {
+                    const g1 = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+                    g1.position.set(0.17, 1.55, 0.28); g1.rotation.z = Math.PI/2; thumbScene.add(g1);
+                    const g2 = g1.clone(); g2.position.x = -0.17; thumbScene.add(g2);
+                }
+
+                // build renderer for the thumbnail - single-frame render
+                // Render into a temporary WebGLRenderer, capture the image dataURL, then
+                // immediately release the GL resources so we don't accumulate WebGL contexts
+                // which can cause rendering artifacts in the main game on some GPUs/browsers.
+                const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+                try {
+                    r.setPixelRatio(1);
+                    r.setSize(w, h);
+                    r.setClearColor(0x000000, 0);
+                    r.render(thumbScene, cam);
+
+                    // Capture a PNG data URL from the thumbnail canvas and then clean up
+                    const dataURL = r.domElement.toDataURL('image/png');
+
+                    // Attempt to lose the GL context (free GPU resources) if extension available
+                    try {
+                        const gl = r.getContext();
+                        const ext = gl && (gl.getExtension('WEBGL_lose_context') || gl.getExtension('MOZ_WEBGL_lose_context') || gl.getExtension('WEBKIT_WEBGL_lose_context'));
+                        if (ext) ext.loseContext();
+                    } catch (e) { /* ignore context-loss errors */ }
+
+                    // Dispose three.js renderer internals
+                    try { r.dispose(); } catch (e) { /* ignore */ }
+
+                    // Return a regular Image element (no live GL canvas) to avoid keeping GPU contexts
+                    const img = new Image();
+                    img.src = dataURL;
+                    img.width = w;
+                    img.height = h;
+                    img.style.display = 'block';
+                    img.style.background = 'transparent';
+                    return img;
+                } catch (err) {
+                    try { r.dispose(); } catch (e) {}
+                    throw err;
+                }
+            } catch (err) {
+                console.warn('Avatar thumbnail render failed', err);
+                return null;
+            }
+        }
+
+        function renderShopOptions() {
+            const grid = document.getElementById('shopGrid');
+            grid.innerHTML = '';
+            const selectedChar = (ownedCharacters.find(c => c.id === selectedCharacterId) || defaultCharacter);
+            // Ensure default character is shown and owned in the shop
+            if (!ownedCharacters.some(c => c.id === defaultCharacter.id)) {
+                ownedCharacters.unshift(defaultCharacter);
+                saveData();
+            }
+            // Show the default character first, then generated variants
+            const options = [defaultCharacter].concat(generateVariants(selectedChar));
+
+            options.forEach(opt => {
+                const item = document.createElement('div');
+                item.className = 'shop-item';
+
+                const preview = document.createElement('div');
+                preview.className = 'avatar-preview';
+                // render a 3D thumbnail canvas showing the full character facing the camera
+                const thumbCanvas = createAvatarThumbnail(opt, 160, 160);
+                if (thumbCanvas) {
+                    // nice sizing inside preview
+                    thumbCanvas.style.width = '84px';
+                    thumbCanvas.style.height = '84px';
+                    thumbCanvas.style.borderRadius = '12px';
+                    preview.appendChild(thumbCanvas);
+                } else {
+                    // fallback to simple block if rendering fails
+                    const fallback = document.createElement('div'); fallback.className = 'avatar-face'; fallback.style.background = '#' + (opt.skin.toString(16).padStart(6,'0'));
+                    preview.appendChild(fallback);
+                }
+
+                const nameEl = document.createElement('div'); nameEl.className='shop-name'; nameEl.textContent = opt.name;
+                const costEl = document.createElement('div'); costEl.className='shop-cost'; costEl.textContent = opt.cost + ' ✦';
+
+                const controls = document.createElement('div'); controls.className='shop-controls';
+                const buyBtn = document.createElement('button'); buyBtn.className='btn-small btn-buy'; buyBtn.textContent='Buy';
+                const selectBtn = document.createElement('button'); selectBtn.className='btn-small btn-select'; selectBtn.textContent='Select';
+
+                // Owned check: prefer id match, fallback to name/colors match. Capture the owned entry if present.
+                // Match owned characters by id OR by stable visual properties (name + body + hat).
+                // We intentionally ignore skin because generateVariants may substitute skin from the base
+                // which would otherwise break matching when the shop is regenerated with a different base.
+                const ownedMatch = ownedCharacters.find(c => c.id === opt.id || (c.name === opt.name && c.body === opt.body && c.hat === opt.hat));
+                const owned = !!ownedMatch;
+                if (owned) {
+                    const badge = document.createElement('div'); badge.className='owned-badge'; badge.textContent='Owned';
+                    controls.appendChild(badge);
+                    selectBtn.style.display = 'inline-block'; buyBtn.style.display = 'none';
+                } else {
+                    controls.appendChild(buyBtn);
+                    selectBtn.style.display = 'none';
+                }
+
+                // Buy handler
+                buyBtn.addEventListener('click', () => {
+                    if (totalCollected < opt.cost) {
+                        alert('Not enough coins');
+                        return;
+                    }
+
+                    // If an owned entry matches these properties, prefer that existing entry (dedupe)
+                    const existing = ownedCharacters.find(c => c.id === opt.id || (c.name === opt.name && c.body === opt.body && c.hat === opt.hat));
+                    if (existing) {
+                        // Already owned (race-condition or stable-id mismatch resolved). Select it.
+                        selectedCharacterId = existing.id;
+                        saveData();
+                        updateTotalUI();
+                        renderShopOptions();
+                        if (playerGroup) { scene.remove(playerGroup); createPlayer(); }
+                        document.getElementById('shopSelectedName').textContent = existing.name;
+                        document.getElementById('shopTotalCoins').textContent = '✦ ' + totalCollected;
+                        return;
+                    }
+
+                    // Proceed with purchase
+                    totalCollected -= opt.cost;
+                    const newChar = Object.assign({}, opt);
+                    newChar.id = opt.id; // deterministic id from generateVariants
+                    ownedCharacters.push(newChar);
+                    selectedCharacterId = newChar.id;
+                    updateTotalUI();
+                    saveData();
+                    // re-render to show owned state
+                    renderShopOptions();
+                    // recreate player to see selection
+                    if (playerGroup) {
+                        scene.remove(playerGroup);
+                        createPlayer();
+                    }
+                    document.getElementById('shopSelectedName').textContent = newChar.name;
+                    document.getElementById('shopTotalCoins').textContent = '✦ ' + totalCollected;
+                });
+
+                // Select handler (for owned)
+                selectBtn.addEventListener('click', () => {
+                    // find owned char by id or by properties
+                    const found = ownedCharacters.find(c => c.id === opt.id) || ownedCharacters.find(c => c.name === opt.name && c.body === opt.body && c.hat === opt.hat);
+                    if (found) {
+                        selectedCharacterId = found.id;
+                        saveData();
+                        if (playerGroup) { scene.remove(playerGroup); createPlayer(); }
+                        document.getElementById('shopSelectedName').textContent = found.name;
+                        // visually update all shop items to reflect new selection
+                        renderShopOptions();
+                    }
+                });
+
+                // If this option is currently selected, style the select button accordingly
+                const ownedEntry = ownedCharacters.find(c => c.id === opt.id) || ownedCharacters.find(c => c.name === opt.name && c.body === opt.body && c.hat === opt.hat);
+                const isSelected = ownedEntry && ownedEntry.id === selectedCharacterId;
+                if (isSelected) {
+                    selectBtn.classList.add('btn-selected');
+                    selectBtn.textContent = 'Selected';
+                    selectBtn.disabled = true;
+                } else {
+                    selectBtn.classList.remove('btn-selected');
+                    selectBtn.textContent = 'Select';
+                    selectBtn.disabled = false;
+                }
+
+                item.appendChild(preview);
+                item.appendChild(nameEl);
+                item.appendChild(costEl);
+                item.appendChild(controls);
+                item.appendChild(selectBtn);
+                // visually mark selected card
+                if (isSelected) item.classList.add('selected');
+                grid.appendChild(item);
+            });
+        }
+        // Initialize Three.js
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0xB8956A, 60, 200);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 12);
+            
+            // Reduce GPU load by capping devicePixelRatio and turning off expensive features by default
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
+            // Lower pixel ratio on mobile to reduce GPU pressure and keep performance stable
+            let pixelRatio = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
+            if (isMobile) pixelRatio = Math.min(pixelRatio, 1);
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = !!config.performance.enableShadows;
+            if (renderer.shadowMap.enabled) {
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            }
+            renderer.setClearColor(0x4a3829);
+            
+            const ambientLight = new THREE.AmbientLight(0xD4AF37, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xFFF8DC, 1.2);
+            directionalLight.position.set(10, 30, 10);
+            // Only enable shadow properties if shadows are enabled (expensive otherwise)
+            if (config.performance.enableShadows) {
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = Math.min(2048, config.performance.maxShadowMapSize);
+                directionalLight.shadow.mapSize.height = Math.min(2048, config.performance.maxShadowMapSize);
+                directionalLight.shadow.camera.left = -30;
+                directionalLight.shadow.camera.right = 30;
+                directionalLight.shadow.camera.top = 30;
+                directionalLight.shadow.camera.bottom = -30;
+            }
+            scene.add(directionalLight);
+            
+            const rimLight = new THREE.SpotLight(0xE6F3FF, 0.6);
+            rimLight.position.set(0, 15, 20);
+            scene.add(rimLight);
+            
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+                // Also handle orientationchange for mobile devices - ensure renderer updates
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => {
+                        camera.aspect = window.innerWidth / window.innerHeight;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(window.innerWidth, window.innerHeight);
+                    }, 200);
+                });
+        }
+
+        // Create player (improved proportions and two-segment limbs for more humanlike motion)
+        function createPlayer() {
+            playerGroup = new THREE.Group();
+            // determine selected character data
+            const selectedChar = (ownedCharacters.find(c => c.id === selectedCharacterId) || defaultCharacter);
+
+            // materials
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: selectedChar.body || 0x8B7355, roughness: 0.75 });
+            const skinMaterial = new THREE.MeshStandardMaterial({ color: selectedChar.skin || 0xD2B48C, roughness: 0.6 });
+            const limbMaterial = new THREE.MeshStandardMaterial({ color: selectedChar.body || 0x8B7355, roughness: 0.7 });
+            const limbAccent = new THREE.MeshStandardMaterial({ color: 0x4b3b2b, roughness: 0.85 });
+
+            // torso - slightly narrower and taller for better limb separation
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.35, 0.45), bodyMaterial);
+            torso.position.y = 0.95;
+            torso.castShadow = true;
+            playerGroup.add(torso);
+
+            // neck and head with pivot (gameplay shows back of head)
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.22, 12), skinMaterial);
+            neck.position.set(0, 1.46, 0);
+            neck.castShadow = true;
+            playerGroup.add(neck);
+
+            const headPivot = new THREE.Group();
+            headPivot.position.set(0, 1.7, 0);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 18, 12), skinMaterial);
+            head.position.set(0, 0, 0);
+            head.castShadow = true;
+            headPivot.add(head);
+            playerGroup.add(headPivot);
+
+            // hat - build via shared factory so player and thumbnails match
+            const hatGroup = makeHat(selectedChar, false);
+            // Attach to the head pivot so it rotates with the head.
+            // Align the hat base to the top of the spherical head using a bounding-box-based offset.
+            // This prevents hats from appearing to 'levitate' when internal geometry has Y offsets.
+            try {
+                // add temporarily so setFromObject can compute bounds correctly
+                headPivot.add(hatGroup);
+                hatGroup.updateMatrixWorld(true);
+                const hatBox = new THREE.Box3().setFromObject(hatGroup);
+                const hatBottom = hatBox.min.y;
+
+                // head sphere radius (matches createPlayer head geometry)
+                const headRadius = 0.35;
+
+                // choose desired base Y (relative to head pivot) depending on hat/hair type
+                const hatType = (hatGroup.userData && hatGroup.userData.type) ? hatGroup.userData.type : 'cap';
+                let desiredBaseY = headRadius + 0.02; // default: sit slightly above head
+                if (hatType === 'hair') {
+                    // hair should sit tighter to the skull
+                    desiredBaseY = headRadius - 0.06;
+                } else if (hatType === 'crown') {
+                    desiredBaseY = headRadius + 0.05;
+                }
+
+                const offsetY = desiredBaseY - hatBottom;
+                // apply offset local to headPivot — use absolute assignment to avoid accumulating prior offsets
+                hatGroup.position.x = 0;
+                hatGroup.position.z = 0;
+                hatGroup.position.y = offsetY;
+                hatGroup.rotation.set(0, 0, 0);
+            } catch (e) {
+                // Fallback: simple placement if bounds computation fails
+                const hatType = (hatGroup.userData && hatGroup.userData.type) ? hatGroup.userData.type : 'cap';
+                if (hatType === 'hair') hatGroup.position.set(0, 0.05, 0);
+                else if (hatType === 'crown') hatGroup.position.set(0, 0.28, 0);
+                else hatGroup.position.set(0, 0.3, 0);
+                headPivot.add(hatGroup);
+            }
+
+            // Arms: create upper and lower segments with an elbow joint for more natural motion
+            function makeArm(side) {
+                const shoulderX = side === 'left' ? -0.48 : 0.48;
+                const upperPivot = new THREE.Group();
+                // attach slightly higher to align with shoulder pads
+                upperPivot.position.set(shoulderX, 1.5, 0);
+
+                const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.16), limbMaterial);
+                upperArm.position.set(0, -0.25, 0);
+                upperArm.castShadow = true;
+                upperPivot.add(upperArm);
+
+                const elbowPivot = new THREE.Group();
+                elbowPivot.position.set(0, -0.5, 0);
+                // lower arm
+                const lowerArm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.45, 0.14), limbMaterial);
+                lowerArm.position.set(0, -0.225, 0);
+                lowerArm.castShadow = true;
+                elbowPivot.add(lowerArm);
+                upperPivot.add(elbowPivot);
+
+                // small hand nub
+                // improved hand: palm + three simple finger nubs for more humanoid look
+                const handGroup = new THREE.Group();
+                const palm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.08), skinMaterial);
+                palm.position.set(0, -0.45, 0.06);
+                palm.castShadow = true;
+                handGroup.add(palm);
+
+                for (let f = 0; f < 3; f++) {
+                    const finger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.03), skinMaterial);
+                    finger.position.set(-0.03 + f * 0.03, -0.52, 0.12);
+                    finger.castShadow = true;
+                    handGroup.add(finger);
+                }
+                elbowPivot.add(handGroup);
+
+                playerGroup.add(upperPivot);
+                return { upperPivot, elbowPivot };
+            }
+
+            const leftArm = makeArm('left');
+            const rightArm = makeArm('right');
+
+            // Legs: upper (thigh) and lower (calf) segments with knee pivot
+            function makeLeg(side) {
+                const hipX = side === 'left' ? -0.22 : 0.22;
+                const upperLegPivot = new THREE.Group();
+                // slightly raise hip pivot for more human proportions
+                upperLegPivot.position.set(hipX, 0.72, 0);
+
+                const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.55, 0.26), limbAccent);
+                upperLeg.position.set(0, -0.275, 0);
+                upperLeg.castShadow = true;
+                upperLegPivot.add(upperLeg);
+
+                const kneePivot = new THREE.Group();
+                kneePivot.position.set(0, -0.55, 0);
+                const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.6, 0.24), limbAccent);
+                lowerLeg.position.set(0, -0.3, 0);
+                lowerLeg.castShadow = true;
+                kneePivot.add(lowerLeg);
+                upperLegPivot.add(kneePivot);
+
+                // foot
+                const foot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.44), limbAccent);
+                foot.position.set(0, -0.7, 0.12);
+                foot.castShadow = true;
+                kneePivot.add(foot);
+
+                playerGroup.add(upperLegPivot);
+                return { upperLegPivot, kneePivot };
+            }
+
+            const leftLeg = makeLeg('left');
+            const rightLeg = makeLeg('right');
+
+            // backpack/accessory (slightly smaller to avoid overlapping limbs)
+            const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.6, 0.24), new THREE.MeshStandardMaterial({ color: 0x5C4033, roughness: 0.8 }));
+            backpack.position.set(0, 0.95, -0.33);
+            backpack.castShadow = true;
+            playerGroup.add(backpack);
+
+            if (selectedChar.accessory === 'scarf') {
+                const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, 0.18), new THREE.MeshStandardMaterial({ color: 0xB22222 }));
+                scarf.position.set(0, 1.05, 0.35);
+                playerGroup.add(scarf);
+            } else if (selectedChar.accessory === 'goggles') {
+                // attach goggles to the headPivot so they rotate with the head (front visible in picker only)
+                const gMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+                const g = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16), gMat);
+                // position relative to headPivot (headPivot at ~1.7 world Y)
+                g.position.set(0.18, -0.15, 0.35);
+                g.rotation.z = Math.PI / 2;
+                headPivot.add(g);
+                const g2 = g.clone(); g2.position.x = -0.18; headPivot.add(g2);
+            }
+
+            // store limb pivots for runtime animation (keep old names as aliases for compatibility)
+            playerGroup.userData = {
+                leftUpperArmPivot: leftArm.upperPivot,
+                leftLowerArmPivot: leftArm.elbowPivot,
+                rightUpperArmPivot: rightArm.upperPivot,
+                rightLowerArmPivot: rightArm.elbowPivot,
+                leftUpperLegPivot: leftLeg.upperLegPivot,
+                leftLowerLegPivot: leftLeg.kneePivot,
+                rightUpperLegPivot: rightLeg.upperLegPivot,
+                rightLowerLegPivot: rightLeg.kneePivot,
+                headPivot,
+                hatGroup
+            };
+
+            // Backwards-compatible aliases used by some code paths
+            playerGroup.userData.leftArmPivot = playerGroup.userData.leftUpperArmPivot;
+            playerGroup.userData.rightArmPivot = playerGroup.userData.rightUpperArmPivot;
+            playerGroup.userData.leftLegPivot = playerGroup.userData.leftUpperLegPivot;
+            playerGroup.userData.rightLegPivot = playerGroup.userData.rightUpperLegPivot;
+
+            // make the character face away from camera during gameplay (show back)
+            headPivot.rotation.y = Math.PI;
+
+            playerGroup.position.set(LANES.CENTER, 1, 0);
+            scene.add(playerGroup);
+        }
+
+        // Create corridor segment with columns
+        function createCorridorSegment(zPosition) {
+            const segment = new THREE.Group();
+            
+            // Floor with lane markings
+            const floorGeometry = new THREE.PlaneGeometry(config.corridorWidth, config.segmentLength);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD2B48C, 
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            segment.add(floor);
+            
+            // Lane divider lines
+            const dividerMaterial = new THREE.MeshStandardMaterial({ color: 0xA0826D, roughness: 0.9 });
+            const divider1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, config.segmentLength), dividerMaterial);
+            divider1.position.set(-4, 0.025, 0);
+            divider1.rotation.x = -Math.PI / 2;
+            segment.add(divider1);
+            
+            const divider2 = divider1.clone();
+            divider2.position.x = 4;
+            segment.add(divider2);
+            
+            // Papyrus columns on both sides
+            for (let i = 0; i < Math.floor(config.segmentLength / 15) + 1; i++) {
+                const zPos = i * 15 - config.segmentLength / 2;
+                
+                // Left column
+                const leftColumn = createColumn();
+                leftColumn.position.set(-7, 0, zPos);
+                segment.add(leftColumn);
+                
+                // Right column
+                const rightColumn = createColumn();
+                rightColumn.position.set(7, 0, zPos);
+                segment.add(rightColumn);
+                
+                // Add torch lights between columns
+                if (i % 2 === 0) {
+                    const torchLight = new THREE.PointLight(0xFF8C00, 2.0, 30);
+                    torchLight.position.set(
+                        Math.random() > 0.5 ? -7 : 7,
+                        10,
+                        zPos
+                    );
+                    // avoid per-light shadows which are expensive; rely on canned lighting when needed
+                    if (config.performance.enableShadows) torchLight.castShadow = true;
+                    segment.add(torchLight);
+                    torchLights.push({ light: torchLight, baseIntensity: 2.0 });
+                }
+            }
+            
+            // Walls behind columns
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8B7355, 
+                roughness: 0.8
+            });
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(2, config.corridorHeight, config.segmentLength), 
+                wallMaterial
+            );
+            leftWall.position.set(-9, config.corridorHeight / 2, 0);
+            leftWall.receiveShadow = true;
+            leftWall.castShadow = true;
+            segment.add(leftWall);
+            
+            const rightWall = leftWall.clone();
+            rightWall.position.x = 9;
+            segment.add(rightWall);
+            
+            // Ceiling with stars
+            const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1E3A8A, 
+                roughness: 0.7,
+                emissive: 0x0a1a3a,
+                emissiveIntensity: 0.2
+            });
+            const ceiling = new THREE.Mesh(
+                new THREE.PlaneGeometry(config.corridorWidth + 4, config.segmentLength),
+                ceilingMaterial
+            );
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = config.corridorHeight;
+            segment.add(ceiling);
+            
+            segment.position.z = zPosition;
+            scene.add(segment);
+            corridorSegments.push(segment);
+        }
+        
+        // Create papyrus column
+        function createColumn() {
+            const columnGroup = new THREE.Group();
+            
+            const shaftMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8B7355, 
+                roughness: 0.8
+            });
+            const shaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1, 18, 12),
+                shaftMaterial
+            );
+            shaft.position.y = 9;
+            shaft.castShadow = true;
+            shaft.receiveShadow = true;
+            columnGroup.add(shaft);
+            
+            // Capital (papyrus bloom)
+            const capitalMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD2B48C, 
+                roughness: 0.7
+            });
+            const capital = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.5, 1, 2, 12),
+                capitalMaterial
+            );
+            capital.position.y = 19;
+            capital.castShadow = true;
+            columnGroup.add(capital);
+            
+            // Base
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.2, 1.2, 1, 12),
+                shaftMaterial
+            );
+            base.position.y = 0.5;
+            base.castShadow = true;
+            columnGroup.add(base);
+            
+            return columnGroup;
+        }
+
+        // Create sarcophagus obstacle (like train in Subway Surfers)
+        function createSarcophagus(zPosition, lanePosition) {
+            const sarcGroup = new THREE.Group();
+            
+            const boxMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x696969, 
+                roughness: 0.8
+            });
+            const box = new THREE.Mesh(
+                new THREE.BoxGeometry(3, 4, 3),
+                boxMaterial
+            );
+            box.position.y = 2;
+            box.castShadow = true;
+            box.receiveShadow = true;
+            sarcGroup.add(box);
+            
+            // Gold trim
+            const trimMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFD700, 
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const trim1 = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.3, 3.2), trimMaterial);
+            trim1.position.y = 0.5;
+            sarcGroup.add(trim1);
+            
+            const trim2 = trim1.clone();
+            trim2.position.y = 3.5;
+            sarcGroup.add(trim2);
+            
+            sarcGroup.position.set(lanePosition, 0, zPosition);
+            sarcGroup.userData = { type: 'sarcophagus', lane: lanePosition };
+            scene.add(sarcGroup);
+            obstacles.push(sarcGroup);
+        }
+
+        // Create low barrier (jump over)
+        function createLowBarrier(zPosition, lanePosition) {
+            const barrier = new THREE.Mesh(
+                new THREE.BoxGeometry(3, 1.5, 2),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x8B7355, 
+                    roughness: 0.9
+                })
+            );
+            barrier.position.set(lanePosition, 0.75, zPosition);
+            barrier.castShadow = true;
+            barrier.receiveShadow = true;
+            barrier.userData = { type: 'lowBarrier', lane: lanePosition };
+            scene.add(barrier);
+            obstacles.push(barrier);
+        }
+
+        // Create high barrier (slide under) - decorative gold-trimmed beam consistent with sarcophagus styling
+        function createHighBarrier(zPosition, lanePosition) {
+            const group = new THREE.Group();
+
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x696969, roughness: 0.8 });
+            const goldMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.25, metalness: 0.85 });
+
+            // main beam - visually prominent so players know to slide under
+            // slightly lower the beam so its underside is more obvious and matches collision
+            const beamHeight = 2.5;
+            const beam = new THREE.Mesh(new THREE.BoxGeometry(3.2, beamHeight, 2.4), baseMat);
+            // center slightly lower so the underside (min Y) aligns with player's slide height
+            beam.position.set(0, 3.9, 0);
+            beam.castShadow = true;
+            beam.receiveShadow = true;
+            group.add(beam);
+
+            // gold trims and accents
+            // compute trim positions relative to the beam so trims stay aligned
+            const beamBottom = beam.position.y - beamHeight / 2; // underside Y
+            const beamTop = beam.position.y + beamHeight / 2;    // top Y
+
+            // lower trim sits a little above the underside, upper trim a little below the top
+            const lowerTrimY = beamBottom + 0.18;
+            const upperTrimY = beamTop - 0.18;
+
+            const trim1 = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, 2.6), goldMat);
+            trim1.position.set(0, lowerTrimY, 0);
+            group.add(trim1);
+
+            const trim2 = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, 2.6), goldMat);
+            trim2.position.set(0, upperTrimY, 0);
+            group.add(trim2);
+
+            // small vertical side detailing to echo sarcophagus trim
+            // center these on the beam's middle area so they scale with beam position
+            const sideY = beam.position.y - 0.4;
+            const sideLeft = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.2, 0.4), goldMat);
+            sideLeft.position.set(-1.6, sideY, 0);
+            group.add(sideLeft);
+            const sideRight = sideLeft.clone(); sideRight.position.x = 1.6; group.add(sideRight);
+
+            group.position.set(lanePosition, 0, zPosition);
+            group.userData = { type: 'highBarrier', lane: lanePosition };
+            scene.add(group);
+            obstacles.push(group);
+            // Add a visible underside marker at the beam's bottom to clearly show the collision plane
+                // No visual marker added here: user requested marker removal.
+        }
+
+        // Create collectible
+        function createCollectible(type, position) {
+            let mesh;
+            let value = 1;
+            
+            switch(type) {
+                case 'scarab':
+                    mesh = new THREE.Mesh(
+                        new THREE.TorusKnotGeometry(0.3, 0.1, 64, 8),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0xFFD700, 
+                            roughness: 0.2, 
+                            metalness: 0.9,
+                            emissive: 0xFFD700,
+                            emissiveIntensity: 0.3
+                        })
+                    );
+                    value = 10;
+                    break;
+                case 'ankh':
+                    mesh = new THREE.Mesh(
+                        new THREE.TorusGeometry(0.3, 0.1, 16, 32),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0xDAA520, 
+                            roughness: 0.3, 
+                            metalness: 0.8,
+                            emissive: 0xDAA520,
+                            emissiveIntensity: 0.2
+                        })
+                    );
+                    // ankh is a mid-value collectible (<= 10)
+                    value = 5;
+                    break;
+                case 'gem':
+                    mesh = new THREE.Mesh(
+                        new THREE.DodecahedronGeometry(0.35),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0x1E3A8A, 
+                            emissive: 0x4169E1,
+                            emissiveIntensity: 0.5,
+                            transparent: true,
+                            opacity: 0.9,
+                            roughness: 0.1,
+                            metalness: 0.5
+                        })
+                    );
+                    // gem is a higher-value collectible but capped at 10
+                    value = 8;
+                    break;
+                default:
+                    mesh = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.25, 16, 16),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0xFFD700, 
+                            roughness: 0.2, 
+                            metalness: 1.0,
+                            emissive: 0xFFD700,
+                            emissiveIntensity: 0.4
+                        })
+                    );
+                    value = 1;
+                    break;
+            }
+            
+            mesh.position.copy(position);
+            // store a stable baseY and tune bob/rotation for easier pickup
+            mesh.userData = { 
+                type: 'collectible', 
+                subtype: type, 
+                value: Math.min(value, 10),
+                bobPhase: Math.random() * Math.PI * 2,
+                rotation: 0,
+                baseY: mesh.position.y,
+                // tuned for less vertical movement and slower spin
+                rotateSpeed: 0.02,
+                bobAmplitude: 0.08,
+                bobSpeed: 0.05,
+                prevZ: mesh.position.z
+            };
+            scene.add(mesh);
+            collectibles.push(mesh);
+        }
+
+        // Create particles
+        function createParticles(position, count, color) {
+            const positions = [];
+            const velocities = [];
+            
+            for (let i = 0; i < count; i++) {
+                positions.push(
+                    position.x + (Math.random() - 0.5) * 1,
+                    position.y + (Math.random() - 0.5) * 1,
+                    position.z + (Math.random() - 0.5) * 1
+                );
+                velocities.push(
+                    (Math.random() - 0.5) * 0.15,
+                    Math.random() * 0.2,
+                    (Math.random() - 0.5) * 0.15
+                );
+            }
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({
+                color: color,
+                size: 0.3,
+                transparent: true,
+                opacity: 1.0,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            particleSystem.userData = { velocities, life: 1.0, velocityData: velocities };
+            scene.add(particleSystem);
+            particles.push(particleSystem);
+        }
+        
+        // Create ambient dust particles
+        function createAmbientDust() {
+            const dustCount = config.performance.ambientDustCount || 150;
+            const positions = [];
+
+            for (let i = 0; i < dustCount; i++) {
+                positions.push(
+                    (Math.random() - 0.5) * 20,
+                    Math.random() * config.corridorHeight,
+                    Math.random() * -100 - 10
+                );
+            }
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({
+                color: 0xD2A679,
+                size: 0.15,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const dustSystem = new THREE.Points(geometry, material);
+            dustSystem.userData = { type: 'ambient' };
+            scene.add(dustSystem);
+            return dustSystem;
+        }
+        
+        let ambientDust = null;
+
+        // Check collision
+        // Lightweight collision check: early-out by z-distance to avoid expensive Box3 computations
+        function checkCollision(obj) {
+            if (!playerGroup) return false;
+
+            // Early-out based on Z distance - most objects are far ahead/behind
+            const dz = Math.abs(obj.position.z - playerGroup.position.z);
+            if (dz > 4) return false; // not close enough to collide
+
+            // Use a cheap XZ distance check; vertical checks are performed later depending on obstacle type
+            const dx = Math.abs(playerGroup.position.x - obj.position.x);
+            const dz2 = Math.abs(playerGroup.position.z - obj.position.z);
+            const approxDist = Math.sqrt(dx * dx + dz2 * dz2);
+
+            // approximate collision radius - tuned to player & obstacle sizes
+            return approxDist < 2.5;
+        }
+
+        // Initialize game
+        function initGame() {
+            obstacles.forEach(obs => scene.remove(obs));
+            collectibles.forEach(col => scene.remove(col));
+            corridorSegments.forEach(seg => scene.remove(seg));
+            particles.forEach(p => scene.remove(p));
+            
+            obstacles = [];
+            collectibles = [];
+            corridorSegments = [];
+            particles = [];
+            torchLights = [];
+            columns = [];
+            
+            distance = 0;
+            score = 0;
+            coins = 0;
+            frameCount = 0;
+            scrollSpeed = config.scrollSpeed;
+            playerVelocity = 0;
+            isJumping = false;
+            isSliding = false;
+            currentLane = 'CENTER';
+            targetLaneX = LANES.CENTER;
+            laneSwitchProgress = 0;
+            laneSwitchStartTime = 0;
+            startLaneX = LANES.CENTER;
+            slideTimer = 0;
+
+            // If a previous run ended while rainbow mode was active, ensure it is fully cleared
+            // so new runs don't inherit the color-cycling state. Also schedule the next rainbow
+            // milestone relative to the fresh distance (0 -> 2500m).
+            try {
+                endRainbowMode();
+            } catch (e) { /* ignore */ }
+            nextRainbowAt = distance + 2500;
+            
+            for (let i = 0; i < 6; i++) {
+                createCorridorSegment(-i * config.segmentLength);
+            }
+            
+            if (playerGroup) {
+                playerGroup.position.set(LANES.CENTER, 1, 0);
+                playerGroup.rotation.set(0, 0, 0);
+            } else {
+                createPlayer();
+            }
+            
+            // Create ambient dust
+            if (ambientDust) {
+                scene.remove(ambientDust);
+            }
+            ambientDust = createAmbientDust();
+            
+            distanceValue.textContent = '0m';
+            scoreValue.textContent = '0';
+            coinsValue.textContent = '✦ 0';
+            if (typeof debugText !== 'undefined' && debugText) debugText.textContent = `distance:0 next:${nextRainbowAt} rainbow:${rainbowModeActive}`;
+        }
+
+        // Start game
+        function startGame() {
+            gameState = 'playing';
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            hud.classList.add('active');
+            // hide floating shop while playing
+            try { updateFloatingShopVisibility(); } catch(e) {}
+            
+            if (!scene) {
+                initThreeJS();
+            }
+            initGame();
+            animate();
+            // ensure shop hidden once animation begins
+            try { updateFloatingShopVisibility(); } catch(e) {}
+        }
+
+        // (manual rainbow trigger removed in cleanup)
+
+        // Restart game
+        function restartGame() {
+            startGame();
+        }
+
+        // Game over
+        function gameOver() {
+            gameState = 'gameover';
+            hud.classList.remove('active');
+            // show floating shop on game over
+            try { updateFloatingShopVisibility(); } catch(e) {}
+            
+            createParticles(playerGroup.position, 30, 0xFFD700);
+            
+            // Update final stats and persistent bests, then show game over UI
+            setTimeout(() => {
+                const finalScoreEl = document.getElementById('finalScore');
+                const treasureScoreEl = document.getElementById('treasureScore');
+                if (finalScoreEl) finalScoreEl.textContent = Math.floor(distance);
+                if (treasureScoreEl) treasureScoreEl.textContent = coins;
+
+                // Update bests
+                if (distance > bestDistance) bestDistance = Math.floor(distance);
+                if (score > bestScore) bestScore = score;
+                updateTotalUI();
+                saveData();
+
+                const medalContainer = document.getElementById('medalContainer');
+                if (distance >= 2000) {
+                    medalContainer.innerHTML = '<div class="medal gold">🏺</div><p style="color: #FFD700; margin-top: 12px; font-weight: 600; font-size: 18px;">GOLDEN PHARAOH</p>';
+                } else if (distance >= 1000) {
+                    medalContainer.innerHTML = '<div class="medal silver">🔱</div><p style="color: #C0C0C0; margin-top: 12px; font-weight: 600; font-size: 18px;">SILVER ANKH</p>';
+                } else if (distance >= 300) {
+                    medalContainer.innerHTML = '<div class="medal bronze">🐞</div><p style="color: #CD7F32; margin-top: 12px; font-weight: 600; font-size: 18px;">BRONZE SCARAB</p>';
+                } else {
+                    medalContainer.innerHTML = '<p style="color: #d2a679; font-size: 15px;">Keep running through the temple!</p>';
+                }
+
+                gameOverScreen.classList.remove('hidden');
+                try { updateFloatingShopVisibility(); } catch(e) {}
+            }, 500);
+        }
+
+        // Lane switching
+        function switchLane(direction) {
+            let newLane = currentLane;
+            
+            if (direction === 'left') {
+                if (currentLane === 'RIGHT') newLane = 'CENTER';
+                else if (currentLane === 'CENTER') newLane = 'LEFT';
+            } else if (direction === 'right') {
+                if (currentLane === 'LEFT') newLane = 'CENTER';
+                else if (currentLane === 'CENTER') newLane = 'RIGHT';
+            }
+            
+            if (newLane !== currentLane) {
+                currentLane = newLane;
+                // start from current world X so interrupting a switch feels responsive
+                startLaneX = playerGroup.position.x;
+                targetLaneX = LANES[currentLane];
+                // mark the start time for a time-based interpolation
+                laneSwitchStartTime = performance.now();
+                // keep legacy progress variable (not used for timing) at 0 for compatibility
+                laneSwitchProgress = 0;
+            }
+        }
+        
+        // Jump
+        function jump() {
+            if (!isJumping && !isSliding && playerGroup.position.y <= 1.1) {
+                isJumping = true;
+                playerVelocity = -config.jumpVelocity;
+            }
+        }
+        
+        // Slide
+        function slide() {
+            if (!isSliding && !isJumping && playerGroup.position.y <= 1.1) {
+                isSliding = true;
+                slideTimer = config.slideDuration;
+            }
+        }
+        
+        // Update game
+        function update() {
+            if (gameState !== 'playing') return;
+            
+            frameCount++;
+            distance += scrollSpeed;
+            score = Math.floor(distance * 10);
+            
+            if (scrollSpeed < config.scrollSpeedMax) {
+                scrollSpeed += config.scrollAcceleration;
+            }
+            
+            // Lane switching animation (time-based, frame-rate independent)
+            try {
+                const switching = laneSwitchStartTime && (startLaneX !== targetLaneX);
+                if (switching) {
+                    const now = performance.now();
+                    const elapsed = Math.max(0, now - laneSwitchStartTime);
+                    const duration = Math.max(1, (config.laneSwitchDuration || 220)); // ms
+                    let t = Math.min(1, elapsed / duration);
+                    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+                    playerGroup.position.x = startLaneX + (targetLaneX - startLaneX) * eased;
+                    // subtle tilt during motion proportional to remaining portion (no tilt at end)
+                    playerGroup.rotation.z = (targetLaneX - startLaneX) * (1 - t) * 0.2;
+
+                    if (t >= 1) {
+                        // end of transition
+                        laneSwitchStartTime = 0;
+                        playerGroup.position.x = targetLaneX;
+                        playerGroup.rotation.z = 0;
+                    }
+                } else {
+                    // ensure stable resting pose
+                    playerGroup.position.x = targetLaneX;
+                    playerGroup.rotation.z = 0;
+                }
+            } catch (e) {
+                // if anything goes wrong, fall back to direct assignment
+                playerGroup.position.x = targetLaneX;
+                playerGroup.rotation.z = 0;
+            }
+
+            // Rainbow mode trigger: every 2500m enable a color-cycling mode for 500m
+            try {
+                if (!rainbowModeActive && distance >= nextRainbowAt) {
+                    // Enable rainbow mode for a 500m window and schedule the next one 2500m later.
+                    rainbowModeActive = true;
+                    rainbowModeEndDistance = distance + 500;
+                    // schedule next rainbow milestone 2500m after this activation
+                    nextRainbowAt = distance + 2500;
+                    console.log('Rainbow mode START at', Math.floor(distance));
+
+                    // snapshot existing materials and assign per-node phases for visual variety
+                    scene.traverse((node) => {
+                        if (node.isMesh && node.material) {
+                            // record per-node phase if not already present
+                            try {
+                                if (!node.userData) node.userData = {};
+                                if (typeof node.userData._rainbowPhase === 'undefined') {
+                                    const seed = Math.abs(Math.floor((node.position.x + node.position.y + node.position.z) * 9973)) % 100;
+                                    node.userData._rainbowPhase = (seed / 100) * 0.9 + Math.random() * 0.1;
+                                }
+                            } catch (e) { /* ignore */ }
+
+                            // snapshot originals for materials present at enable time
+                            const mats = Array.isArray(node.material) ? node.material : [node.material];
+                            mats.forEach((m) => {
+                                if (!m.userData) m.userData = {};
+                                if (typeof m.userData._origColor === 'undefined') {
+                                    m.userData._origColor = m.color ? m.color.getHex() : null;
+                                    m.userData._origEmissive = m.emissive ? m.emissive.getHex() : null;
+                                }
+                            });
+                        }
+                    });
+                }
+
+                if (rainbowModeActive) {
+                    // Compute a base hue that cycles over time
+                    const hue = (performance.now() * 0.00025) % 1; // cycles ~4 seconds
+
+                    // Apply hue to scene materials with per-node offsets/nuances to make obstacles pop
+                    scene.traverse((node) => {
+                        if (node.isMesh && node.material) {
+                            const phase = (node.userData && typeof node.userData._rainbowPhase === 'number') ? node.userData._rainbowPhase : (Math.random() * 0.5);
+                            const hueOffset = (phase * 0.25) % 1;
+                            let sat = 0.72, light = 0.5, eSat = 0.85, eLight = 0.36;
+
+                            // Give obstacle types slightly different saturation/lightness
+                            if (node.userData && node.userData.type) {
+                                if (node.userData.type === 'sarcophagus') { sat = 0.88; light = 0.46; eSat = 0.95; eLight = 0.5; }
+                                else if (node.userData.type === 'highBarrier') { sat = 0.80; light = 0.48; eSat = 0.9; eLight = 0.44; }
+                                else if (node.userData.type === 'lowBarrier') { sat = 0.76; light = 0.52; eSat = 0.86; eLight = 0.38; }
+                            }
+
+                            const nodeHue = (hue + hueOffset) % 1;
+                            const mats = Array.isArray(node.material) ? node.material : [node.material];
+                            mats.forEach((m) => {
+                                try {
+                                    // If this material wasn't present when we enabled rainbow, snapshot its originals now
+                                    if (!m.userData) m.userData = {};
+                                    if (typeof m.userData._origColor === 'undefined') {
+                                        m.userData._origColor = m.color ? m.color.getHex() : null;
+                                        m.userData._origEmissive = m.emissive ? m.emissive.getHex() : null;
+                                    }
+                                    if (m.color) m.color.setHSL(nodeHue, sat, light);
+                                    if (m.emissive) m.emissive.setHSL((nodeHue + 0.08) % 1, eSat, eLight);
+                                } catch (e) { /* ignore material set errors */ }
+                            });
+                        }
+                    });
+
+                    // End rainbow mode when distance exceeded
+                    if (distance >= rainbowModeEndDistance) {
+                        // restore originals
+                        scene.traverse((node) => {
+                            if (node.isMesh && node.material) {
+                                const mats = Array.isArray(node.material) ? node.material : [node.material];
+                                mats.forEach((m) => {
+                                    try {
+                                        if (m.userData && typeof m.userData._origColor !== 'undefined' && m.userData._origColor !== null) {
+                                            m.color.setHex(m.userData._origColor);
+                                        }
+                                        if (m.userData && typeof m.userData._origEmissive !== 'undefined' && m.userData._origEmissive !== null && m.emissive) {
+                                            m.emissive.setHex(m.userData._origEmissive);
+                                        }
+                                    } catch (e) { /* ignore restore errors */ }
+                                });
+                            }
+                        });
+                        rainbowModeActive = false;
+                        console.log('Rainbow mode END at', Math.floor(distance));
+                    }
+                }
+            } catch (e) { console.warn('Rainbow mode error', e); }
+            
+            // Sliding
+            if (isSliding) {
+                slideTimer -= 16;
+                if (slideTimer <= 0) {
+                    isSliding = false;
+                    playerGroup.scale.y = 1;
+                    playerGroup.position.y = 1;
+                } else {
+                    playerGroup.scale.y = 0.5;
+                    playerGroup.position.y = 0.5;
+                }
+            }
+            
+            // Jumping
+            if (isJumping || playerGroup.position.y > 1) {
+                playerVelocity += config.gravity;
+                playerGroup.position.y -= playerVelocity;
+                
+                if (playerGroup.position.y <= 1) {
+                    playerGroup.position.y = 1;
+                    playerVelocity = 0;
+                    isJumping = false;
+                    
+                    // Landing dust
+                    createParticles(new THREE.Vector3(playerGroup.position.x, 0, playerGroup.position.z), 8, 0xD2B48C);
+                }
+            }
+            
+            // Player rotation based on velocity
+            if (!isSliding) {
+                playerGroup.rotation.x = Math.max(-0.15, Math.min(0.15, playerVelocity * 1.5));
+            }
+            
+            // Scroll corridor
+            corridorSegments.forEach((segment, index) => {
+                segment.position.z += scrollSpeed;
+                if (segment.position.z > 50) {
+                    scene.remove(segment);
+                    corridorSegments.splice(index, 1);
+                }
+            });
+            
+            if (corridorSegments.length < 6) {
+                const lastSegment = corridorSegments[corridorSegments.length - 1];
+                const newZ = lastSegment.position.z - config.segmentLength;
+                createCorridorSegment(newZ);
+            }
+            
+            // Spawn obstacles: frequency and distance adapt to current scroll speed so they don't appear too close
+            (function spawnObstaclesAdaptive() {
+                const lanes = ['LEFT', 'CENTER', 'RIGHT'];
+                // adapt spawn interval: faster = more frequent, but clamp to avoid absurd rates
+                const spawnIntervalFrames = Math.max(36, Math.floor(120 - scrollSpeed * 80));
+                if (frameCount % spawnIntervalFrames !== 0) return;
+
+                // determine how many obstacles to spawn in this wave (1..3)
+                let count = 1;
+                const r = Math.random();
+                if (r < 0.55) count = 1;
+                else if (r < 0.85) count = 2;
+                else count = 3;
+
+                const used = new Set();
+                // base distance increases with speed so obstacles spawn further ahead when player is faster
+                const baseSpawnDist = 100 + scrollSpeed * 220; // tuned multiplier
+
+                for (let i = 0; i < count; i++) {
+                    // pick an unused lane if possible
+                    let attempts = 0;
+                    let laneName = lanes[Math.floor(Math.random() * lanes.length)];
+                    while (used.has(laneName) && attempts < 6) {
+                        laneName = lanes[Math.floor(Math.random() * lanes.length)];
+                        attempts++;
+                    }
+                    used.add(laneName);
+
+                    const lanePos = LANES[laneName];
+                    // spread z positions slightly for multi-obstacle groups, further ahead proportional to baseSpawnDist
+                    const zPos = -(baseSpawnDist + Math.random() * 60 + i * (6 + Math.random() * 12));
+
+                    const randType = Math.random();
+                    if (randType < 0.35) {
+                        createSarcophagus(zPos, lanePos);
+                    } else if (randType < 0.7) {
+                        createLowBarrier(zPos, lanePos);
+                    } else {
+                        createHighBarrier(zPos, lanePos);
+                    }
+                }
+            })();
+            
+            // Spawn collectibles
+            // Ensure rare high-value collectibles (value == 10) are about 1% chance
+            if (frameCount % 60 === 0) {
+                const lanes = [LANES.LEFT, LANES.CENTER, LANES.RIGHT];
+
+                // Create coin lines (5 per wave)
+                for (let i = 0; i < 5; i++) {
+                    const lane = lanes[Math.floor(Math.random() * lanes.length)];
+                    // Determine type by probability: scarab (10 coins) ~1%, ankh ~3%, gem ~6%, else coin
+                    const r = Math.random();
+                    let type = 'coin';
+                    if (r < 0.01) {
+                        type = 'scarab'; // 1% chance, value 10
+                    } else if (r < 0.04) {
+                        type = 'ankh'; // ~3% chance, value 5
+                    } else if (r < 0.10) {
+                        type = 'gem'; // ~6% chance, value 8
+                    }
+
+                    const pos = new THREE.Vector3(
+                        lane,
+                        1.5 + Math.random() * 1.5,
+                        -100 - i * 8 - Math.random() * 5
+                    );
+                    createCollectible(type, pos);
+                }
+            }
+            
+            // Compute player bounding box once (used for obstacles and collectibles)
+            const playerBox = new THREE.Box3().setFromObject(playerGroup);
+
+            // Update obstacles
+            obstacles.forEach((obs, index) => {
+                obs.position.z += scrollSpeed;
+
+                // Check collision based on obstacle type
+                if (checkCollision(obs)) {
+                    const obsType = obs.userData.type;
+                    const obsLane = obs.userData.lane;
+
+                    // Only collide if player is in same lane (horizontal quick check)
+                    const inSameLane = Math.abs(playerGroup.position.x - obs.position.x) < 2;
+
+                    if (inSameLane) {
+                        let shouldCollide = false;
+
+                        try {
+                            // Use visual bounds for the obstacle so visuals and physics align
+                            const obsBox = new THREE.Box3().setFromObject(obs);
+                            const clearance = 0.12; // small tolerance
+
+                            // For tall sarcophagus and low barriers: player must lift their feet above obstacle top to clear
+                            if (obsType === 'sarcophagus' || obsType === 'lowBarrier') {
+                                // if player's feet (min Y) are below the top of the obstacle -> collision
+                                if (playerBox.min.y <= obsBox.max.y - clearance) {
+                                    shouldCollide = true;
+                                }
+                            } else if (obsType === 'highBarrier') {
+                                // For high barrier, player must be low (sliding) to pass under its bottom
+                                // If not low enough (or not sliding) and player's head overlaps the obstacle's underside -> collision
+                                if (!isSliding) {
+                                    if (playerBox.max.y >= obsBox.min.y + clearance) {
+                                        shouldCollide = true;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // Fallback to legacy rules on error
+                            if (obsType === 'sarcophagus') {
+                                if (playerGroup.position.y < 3.5) shouldCollide = true;
+                            } else if (obsType === 'lowBarrier') {
+                                if (playerGroup.position.y < 2) shouldCollide = true;
+                            } else if (obsType === 'highBarrier') {
+                                if (!isSliding) shouldCollide = true;
+                            }
+                        }
+
+                        if (shouldCollide) {
+                            gameOver();
+                            return;
+                        }
+                    }
+                }
+
+                if (obs.position.z > 20) {
+                    scene.remove(obs);
+                    obstacles.splice(index, 1);
+                }
+            });
+            
+            // Update collectibles (reduced bobbing and rotation for easier pickup)
+            // Reuse previously computed playerBox to allow collecting with any part of the character
+            function pointAABBDistanceSq(point, box) {
+                let dx = 0, dy = 0, dz = 0;
+                if (point.x < box.min.x) dx = box.min.x - point.x;
+                else if (point.x > box.max.x) dx = point.x - box.max.x;
+                if (point.y < box.min.y) dy = box.min.y - point.y;
+                else if (point.y > box.max.y) dy = point.y - box.max.y;
+                if (point.z < box.min.z) dz = box.min.z - point.z;
+                else if (point.z > box.max.z) dz = point.z - box.max.z;
+                return dx*dx + dy*dy + dz*dz;
+            }
+
+            // Iterate backwards to safely remove items while looping
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const col = collectibles[i];
+
+                // Track previous Z to detect crossing (avoids tunneling at high scroll speeds)
+                const prevZ = (col.userData && typeof col.userData.prevZ === 'number') ? col.userData.prevZ : col.position.z;
+                const newZ = col.position.z + scrollSpeed;
+
+                // Apply movement and bob/rotation
+                col.position.z = newZ;
+                col.userData.prevZ = newZ;
+                col.userData.rotation += col.userData.rotateSpeed || 0.02;
+                col.rotation.y = col.userData.rotation;
+                col.userData.bobPhase += col.userData.bobSpeed || 0.05;
+                const bob = Math.sin(col.userData.bobPhase) * (col.userData.bobAmplitude || 0.08);
+                col.position.y = (col.userData.baseY || col.position.y) + bob;
+
+                // Horizontal proximity (X) tolerance (used for segment overlap tests)
+                const pad = 0.6; // padding around player box to make touch feel fair
+
+                // Check point-to-AABB distance (allows any part of player to collect)
+                const distSq = pointAABBDistanceSq(col.position, playerBox);
+                const intersects = distSq <= (0.9 * 0.9); // if within ~0.9 units of player box, count as intersect
+
+                // Z-segment overlap test (catches tunneling across frames): check if collectible's path crosses player's Z extent
+                const withinXRange = (col.position.x >= playerBox.min.x - pad && col.position.x <= playerBox.max.x + pad);
+                const withinYRange = (col.position.y >= playerBox.min.y - pad && col.position.y <= playerBox.max.y + pad);
+                const zMin = Math.min(prevZ, newZ);
+                const zMax = Math.max(prevZ, newZ);
+                const zOverlap = (zMax >= playerBox.min.z - pad && zMin <= playerBox.max.z + pad);
+
+                if (intersects || (withinXRange && withinYRange && zOverlap)) {
+                    const val = col.userData.value || 1;
+                    coins += val;
+                    score += val * 10;
+                    totalCollected += val;
+                    createParticles(col.position, 15, 0xFFD700);
+                    scene.remove(col);
+                    collectibles.splice(i, 1);
+                    coinsValue.textContent = '✦ ' + coins;
+                    updateTotalUI();
+                    saveData();
+                    continue;
+                }
+
+                if (col.position.z > 20) {
+                    scene.remove(col);
+                    collectibles.splice(i, 1);
+                }
+            }
+            
+            // Update particles
+            particles.forEach((p, index) => {
+                p.userData.life -= 0.025;
+                p.material.opacity = p.userData.life;
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(index, 1);
+                } else {
+                    const positions = p.geometry.attributes.position.array;
+                    const velocities = p.userData.velocityData;
+                    for (let i = 0; i < positions.length; i += 3) {
+                        positions[i] += velocities[i];
+                        positions[i + 1] += velocities[i + 1] - 0.015;
+                        positions[i + 2] += velocities[i + 2];
+                    }
+                    p.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+            
+            // Update ambient dust
+            if (ambientDust) {
+                ambientDust.position.z += scrollSpeed;
+                if (ambientDust.position.z > 50) {
+                    ambientDust.position.z = -50;
+                }
+                
+                const positions = ambientDust.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i + 1] += (Math.random() - 0.5) * 0.02;
+                    if (positions[i + 1] > config.corridorHeight) positions[i + 1] = 0;
+                    if (positions[i + 1] < 0) positions[i + 1] = config.corridorHeight;
+                }
+                ambientDust.geometry.attributes.position.needsUpdate = true;
+            }
+            
+            // Torch flicker
+            torchLights.forEach(torch => {
+                torch.light.intensity = torch.baseIntensity + (Math.random() - 0.5) * 0.4;
+            });
+            
+            // Running dust from feet (less frequent to reduce particle churn)
+            if (frameCount % 10 === 0 && !isJumping) {
+                const footPos = new THREE.Vector3(
+                    playerGroup.position.x + (Math.random() - 0.5) * 0.4,
+                    0.1,
+                    playerGroup.position.z + (Math.random() - 0.5) * 0.3
+                );
+                createParticles(footPos, 2, 0xC4A484);
+            }
+            
+            // Camera follow (third-person behind view)
+            const cameraTargetX = playerGroup.position.x;
+            const cameraTargetY = playerGroup.position.y + 5;
+            const cameraTargetZ = playerGroup.position.z + 12;
+            
+            camera.position.x += (cameraTargetX - camera.position.x) * 0.1;
+            camera.position.y += (cameraTargetY - camera.position.y) * 0.1;
+            camera.position.z += (cameraTargetZ - camera.position.z) * 0.1;
+            
+            const lookAtTarget = new THREE.Vector3(
+                playerGroup.position.x,
+                playerGroup.position.y + 1,
+                playerGroup.position.z - 5
+            );
+            camera.lookAt(lookAtTarget);
+            
+            // Update HUD
+            distanceValue.textContent = Math.floor(distance) + 'm';
+            scoreValue.textContent = score;
+
+            // Update debug badge (if present)
+            try {
+                if (typeof debugText !== 'undefined' && debugText) debugText.textContent = `distance:${Math.floor(distance)} next:${Math.floor(nextRainbowAt)} rainbow:${rainbowModeActive}`;
+            } catch (e) { /* ignore debug errors */ }
+
+            // Animate humanoid limbs if player exists (time-based gait speed linked to scrollSpeed)
+            try {
+                if (playerGroup && playerGroup.userData && gameState === 'playing') {
+                    const limbs = playerGroup.userData;
+
+                    // Ensure the hatGroup remains parented to the head pivot so it follows head rotations.
+                    // In rare cases a reparenting or disposal can leave the hat detached; reattach if needed.
+                    try {
+                        if (limbs.hatGroup && limbs.headPivot && limbs.hatGroup.parent !== limbs.headPivot) {
+                            limbs.headPivot.add(limbs.hatGroup);
+                            // reset local X/Z to ensure centered attachment; keep Y as previously computed
+                            limbs.hatGroup.position.x = 0;
+                            limbs.hatGroup.position.z = 0;
+                            limbs.hatGroup.updateMatrixWorld(true);
+                        }
+                    } catch (e) { /* ignore reattach failures */ }
+
+                    // Base values and mapping: map scrollSpeed to a gait speed multiplier
+                    const base = config.scrollSpeed || 0.6;
+                    // more responsive scaling so small changes in scrollSpeed feel noticeable
+                    const speedFactor = Math.max(0.6, Math.min(3.0, 0.9 + (scrollSpeed - base) * 0.9));
+
+                    // use wall-clock time for smooth, frame-rate independent motion
+                    const t = performance.now() * 0.001; // seconds
+                    // frequency increases with speedFactor
+                    const frequency = 1.2 * speedFactor; // cycles per second
+                    const gaitPhase = t * Math.PI * 2 * frequency;
+
+                    // amplitudes scale with speed but have sensible base values
+                    const armAmp = 0.35 + 0.18 * speedFactor; // radians
+                    const legAmp = 0.45 + 0.25 * speedFactor;
+                    const kneeBend = 0.6; // knee multiplier
+
+                    // compute phased sin values
+                    const leftLegPhase = Math.sin(gaitPhase);
+                    const rightLegPhase = Math.sin(gaitPhase + Math.PI);
+                    const leftArmPhase = Math.sin(gaitPhase + Math.PI);
+                    const rightArmPhase = Math.sin(gaitPhase);
+
+                    // Apply to upper arms (swing forward/back)
+                    if (limbs.leftUpperArmPivot) limbs.leftUpperArmPivot.rotation.x = leftArmPhase * armAmp - 0.12;
+                    if (limbs.rightUpperArmPivot) limbs.rightUpperArmPivot.rotation.x = rightArmPhase * armAmp + 0.12;
+
+                    // Elbow counterswing for a natural bend (limited)
+                    if (limbs.leftLowerArmPivot) limbs.leftLowerArmPivot.rotation.x = Math.max(-1.1, Math.min(0.6, -leftArmPhase * (armAmp * 0.6)));
+                    if (limbs.rightLowerArmPivot) limbs.rightLowerArmPivot.rotation.x = Math.max(-1.1, Math.min(0.6, -rightArmPhase * (armAmp * 0.6)));
+
+                    // Thigh swing
+                    if (limbs.leftUpperLegPivot) limbs.leftUpperLegPivot.rotation.x = leftLegPhase * legAmp * 0.7;
+                    if (limbs.rightUpperLegPivot) limbs.rightUpperLegPivot.rotation.x = rightLegPhase * legAmp * 0.7;
+
+                    // Knee bend (when swinging backward), clamped
+                    if (limbs.leftLowerLegPivot) limbs.leftLowerLegPivot.rotation.x = Math.max(-0.05, Math.min(1.0, -leftLegPhase * legAmp * kneeBend * 0.6));
+                    if (limbs.rightLowerLegPivot) limbs.rightLowerLegPivot.rotation.x = Math.max(-0.05, Math.min(1.0, -rightLegPhase * legAmp * kneeBend * 0.6));
+
+                    // torso lean scales with speed (subtle)
+                    playerGroup.rotation.x = Math.max(-0.15, Math.min(0.12, - (scrollSpeed - base) * 0.03));
+
+                    // breathing (very subtle)
+                    const breath = Math.sin(t * 0.9) * 0.0075;
+                    playerGroup.scale.y = 1 + breath;
+
+                    // Jump and slide overrides
+                    if (isJumping) {
+                        // make the arms point forward during the jump (positive x rotation)
+                        if (limbs.leftUpperArmPivot) limbs.leftUpperArmPivot.rotation.x = 1.1;
+                        if (limbs.rightUpperArmPivot) limbs.rightUpperArmPivot.rotation.x = 1.1;
+                        // bend elbows slightly forward (positive) for a natural tuck
+                        if (limbs.leftLowerArmPivot) limbs.leftLowerArmPivot.rotation.x = 0.5;
+                        if (limbs.rightLowerArmPivot) limbs.rightLowerArmPivot.rotation.x = 0.5;
+                        if (limbs.leftUpperLegPivot) limbs.leftUpperLegPivot.rotation.x = 0.25;
+                        if (limbs.rightUpperLegPivot) limbs.rightUpperLegPivot.rotation.x = 0.25;
+                    }
+                    if (isSliding) {
+                        playerGroup.scale.y = 0.54;
+                        playerGroup.position.y = 0.5;
+                        if (limbs.leftUpperArmPivot) limbs.leftUpperArmPivot.rotation.x = 0.25;
+                        if (limbs.rightUpperArmPivot) limbs.rightUpperArmPivot.rotation.x = 0.25;
+                        if (limbs.leftLowerArmPivot) limbs.leftLowerArmPivot.rotation.x = 0.0;
+                        if (limbs.rightLowerArmPivot) limbs.rightLowerArmPivot.rotation.x = 0.0;
+                        if (limbs.leftUpperLegPivot) limbs.leftUpperLegPivot.rotation.x = 0.18;
+                        if (limbs.rightUpperLegPivot) limbs.rightUpperLegPivot.rotation.x = -0.18;
+                    }
+                }
+            } catch (e) { /* ignore animation errors */ }
+        }
+
+        // Animation loop
+        function animate() {
+            if (gameState !== 'playing') return;
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        // Touch/Swipe controls
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing') {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            } else if (gameState === 'gameover') {
+                restartGame();
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing') {
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                
+                const threshold = 30;
+                
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+                    // Horizontal swipe
+                    if (deltaX > 0) switchLane('right');
+                    else switchLane('left');
+                } else if (Math.abs(deltaY) > threshold) {
+                    // Vertical swipe
+                    if (deltaY < 0) jump(); // Swipe up
+                    else slide(); // Swipe down
+                }
+            }
+        });
+        
+        // Mouse controls (for desktop)
+        canvas.addEventListener('click', () => {
+            if (gameState === 'playing') {
+                jump();
+            } else if (gameState === 'gameover') {
+                restartGame();
+            }
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (gameState === 'playing') {
+                if (e.code === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                    e.preventDefault();
+                    switchLane('left');
+                } else if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                    e.preventDefault();
+                    switchLane('right');
+                } else if (e.code === 'ArrowUp' || e.code === 'Space' || e.key === 'w' || e.key === 'W') {
+                    e.preventDefault();
+                    jump();
+                } else if (e.code === 'ArrowDown' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 's' || e.key === 'S') {
+                    e.preventDefault();
+                    slide();
+                }
+            } else if (gameState === 'start') {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    startGame();
+                }
+            } else if (gameState === 'gameover') {
+                if (e.code === 'Space' || e.code === 'KeyR' || e.code === 'Enter') {
+                    e.preventDefault();
+                    restartGame();
+                }
+            }
+        });
+        
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Pointer events fallback - useful for devices exposing pointer events
+        if (window.PointerEvent) {
+            canvas.addEventListener('pointerdown', (e) => {
+                // Treat touch-like pointers similar to touchstart / click
+                if (e.pointerType === 'touch') {
+                    // begin a simple touch capture for swipe detection
+                    touchStartX = e.clientX;
+                    touchStartY = e.clientY;
+                } else {
+                    // mouse/stylus pointer => treat as click/jump on desktop
+                    if (gameState === 'playing') jump();
+                    else if (gameState === 'gameover') restartGame();
+                }
+            });
+
+            canvas.addEventListener('pointerup', (e) => {
+                if (e.pointerType === 'touch' && gameState === 'playing') {
+                    const touchEndX = e.clientX;
+                    const touchEndY = e.clientY;
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+                    const threshold = 30;
+                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+                        if (deltaX > 0) switchLane('right');
+                        else switchLane('left');
+                    } else if (Math.abs(deltaY) > threshold) {
+                        if (deltaY < 0) jump();
+                        else slide();
+                    } else {
+                        // tap -> jump
+                        jump();
+                    }
+                }
+            });
+        }
+        
+        window.startGame = startGame;
+        window.restartGame = restartGame;
+
+        // Robust start-button wiring: some browsers/DOM situations can cause inline onclicks
+        // to fail; attach a programmatic fallback so clicking the Start button always calls startGame.
+        try {
+            const startBtn = document.querySelector('#startScreen .start-button');
+            if (startBtn) {
+                startBtn.removeEventListener && startBtn.removeEventListener('click', startGame);
+                startBtn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    console.log('Start button clicked (fallback handler)');
+                    try { startGame(); } catch (e) { console.warn('startGame failed', e); }
+                });
+            }
+        } catch (e) { /* non-fatal */ }
+
+        // Floating shop visibility helper: shows on start and game-over, hides during active play
+        function updateFloatingShopVisibility() {
+            if (!floatingShopBtn) return;
+            if (gameState === 'start' || gameState === 'gameover') {
+                floatingShopBtn.style.display = 'flex';
+                // ensure shop coin label is fresh when opened via floating button
+                floatingShopBtn.title = 'Shop';
+            } else {
+                floatingShopBtn.style.display = 'none';
+            }
+        }
+
+        // wire floating shop click to existing openShop handler
+        if (floatingShopBtn) {
+            floatingShopBtn.addEventListener('click', () => {
+                openShop();
+            });
+        }
+
+        // Touch control button wiring (for mobile) - large, accessible touch targets
+        try {
+            const touchControls = document.getElementById('touchControls');
+            const touchLeft = document.getElementById('touchLeft');
+            const touchRight = document.getElementById('touchRight');
+            const touchJump = document.getElementById('touchJump');
+            const touchSlide = document.getElementById('touchSlide');
+
+            function updateTouchVisibility() {
+                if (!touchControls) return;
+                if (isMobile && (gameState === 'start' || gameState === 'gameover' || gameState === 'playing')) {
+                    touchControls.style.display = 'flex';
+                } else {
+                    touchControls.style.display = 'none';
+                }
+            }
+
+            // initial visibility
+            updateTouchVisibility();
+
+            // ensure visibility updates on state changes via exported helpers
+            window.updateTouchVisibility = updateTouchVisibility;
+
+            if (touchLeft) {
+                touchLeft.addEventListener('click', (e) => { e.preventDefault(); switchLane('left'); });
+                touchLeft.addEventListener('touchstart', (e) => { e.preventDefault(); switchLane('left'); });
+            }
+            if (touchRight) {
+                touchRight.addEventListener('click', (e) => { e.preventDefault(); switchLane('right'); });
+                touchRight.addEventListener('touchstart', (e) => { e.preventDefault(); switchLane('right'); });
+            }
+            if (touchJump) {
+                touchJump.addEventListener('click', (e) => { e.preventDefault(); jump(); });
+                touchJump.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+            }
+            if (touchSlide) {
+                touchSlide.addEventListener('click', (e) => { e.preventDefault(); slide(); });
+                touchSlide.addEventListener('touchstart', (e) => { e.preventDefault(); slide(); });
+            }
+        } catch (e) { /* ignore touch control wiring failures */ }
+
+        // (rainbow test button wiring removed in cleanup)
+
+        // Autosave periodically and on lifecycle events so progress and totals persist
+        try {
+            // run updateTotalUI now so start screen shows correct value
+            updateTotalUI();
+
+            // periodic autosave of last session data
+            setInterval(() => {
+                if (gameState === 'playing' || gameState === 'gameover' || gameState === 'start') saveData();
+            }, 5000);
+
+            // Save when page is hidden or about to unload
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') saveData();
+            });
+            window.addEventListener('beforeunload', saveData);
+            // ensure shopSelectedName reflects current selection on load
+            const selNameEl = document.getElementById('shopSelectedName');
+            if (selNameEl) {
+                const sel = ownedCharacters.find(c => c.id === selectedCharacterId) || defaultCharacter;
+                selNameEl.textContent = sel.name;
+            }
+        } catch (err) {
+            console.warn('Autosave setup failed', err);
+        }
+    </script>
+</body>
+</html>
