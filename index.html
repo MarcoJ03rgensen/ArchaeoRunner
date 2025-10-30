@@ -559,14 +559,17 @@
             corridorHeight: 25,
             segmentLength: 50,
             laneSwitchDuration: 200,
-            slideDuration: 500
-        ,
+            slideDuration: 500,
             // performance-related toggles and caps
             performance: {
-                    maxPixelRatio: 1.5, // allow higher DPR on modern phones for sharper visuals (capped)
+                maxPixelRatio: 1.5, // allow higher DPR on modern phones for sharper visuals (capped)
                 enableShadows: false, // disable shadows by default for better FPS
                 maxShadowMapSize: 1024,
-                ambientDustCount: 80 // reduce ambient particles
+                ambientDustCount: 80, // ambient particle count (reduced on mobile)
+                // particle and update tuning
+                particleBurstLimit: 12, // max particles spawned per burst (can be lowered on low-end devices)
+                particleUpdateSkip: 1, // update particle positions every N frames (1 = every frame)
+                dustUpdateSkip: 1 // update ambient dust positions every N frames
             }
         };
 
@@ -638,7 +641,9 @@
     }
     // timestamp when the current lane switch began (ms). 0 = no active switch
     let laneSwitchStartTime = 0;
-        let slideTimer = 0;
+    let slideTimer = 0;
+    // queued action flags (allow buffering gestures while airborne)
+    let pendingSlide = false;
         // Prevent multiple animation loops from being started (duplicate starts made it feel too fast)
         let animationRunning = false;
     // Timestamp of the last processed touch event (ms) — used to dedupe pointer events
@@ -1841,6 +1846,7 @@
             laneSwitchStartTime = 0;
             startLaneX = LANES.CENTER;
             slideTimer = 0;
+            pendingSlide = false;
 
             // If a previous run ended while rainbow mode was active, ensure it is fully cleared
             // so new runs don't inherit the color-cycling state. Also schedule the next rainbow
@@ -1914,6 +1920,8 @@
             // allow future runs to start a single animation loop again
             animationRunning = false;
             hud.classList.remove('active');
+            // clear any buffered inputs on game over
+            pendingSlide = false;
             // show floating shop on game over
             try { updateFloatingShopVisibility(); } catch(e) {}
             
@@ -1989,7 +1997,13 @@
         
         // Slide
         function slide() {
-            if (!isSliding && !isJumping && playerGroup.position.y <= 1.1) {
+            // If player is currently jumping, queue the slide to occur on landing
+            if (isJumping) {
+                pendingSlide = true;
+                return;
+            }
+
+            if (!isSliding && playerGroup.position.y <= 1.1) {
                 isSliding = true;
                 slideTimer = config.slideDuration;
             }
@@ -2156,6 +2170,13 @@
                     
                     // Landing dust
                     createParticles(new THREE.Vector3(playerGroup.position.x, 0, playerGroup.position.z), 8, 0xD2B48C);
+                    // If the player queued a slide while airborne (user swiped down during jump),
+                    // start the slide immediately on landing for responsive Subway-Surfers-like behavior.
+                    if (pendingSlide) {
+                        pendingSlide = false;
+                        isSliding = true;
+                        slideTimer = config.slideDuration;
+                    }
                 }
             }
             
