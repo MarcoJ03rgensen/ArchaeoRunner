@@ -1941,11 +1941,11 @@
                 saveData();
 
                 const medalContainer = document.getElementById('medalContainer');
-                if (distance >= 2000) {
+                if (distance >= 20000) {
                     medalContainer.innerHTML = '<div class="medal gold">🏺</div><p style="color: #FFD700; margin-top: 12px; font-weight: 600; font-size: 18px;">GOLDEN PHARAOH</p>';
-                } else if (distance >= 1000) {
+                } else if (distance >= 10000) {
                     medalContainer.innerHTML = '<div class="medal silver">🔱</div><p style="color: #C0C0C0; margin-top: 12px; font-weight: 600; font-size: 18px;">SILVER ANKH</p>';
-                } else if (distance >= 300) {
+                } else if (distance >= 5000) {
                     medalContainer.innerHTML = '<div class="medal bronze">🐞</div><p style="color: #CD7F32; margin-top: 12px; font-weight: 600; font-size: 18px;">BRONZE SCARAB</p>';
                 } else {
                     medalContainer.innerHTML = '<p style="color: #d2a679; font-size: 15px;">Keep running through the temple!</p>';
