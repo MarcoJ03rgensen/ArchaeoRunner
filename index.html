@@ -439,6 +439,18 @@
                 <div class="hud-label">Coins</div>
                 <div class="hud-value" id="coinsValue">✦ 0</div>
             </div>
+            <!-- Debug FPS overlay (toggleable) -->
+            <div id="debugOverlay" style="position: absolute; top: 80px; left: 10px; background: rgba(0,0,0,0.7); color: #0f0; font-family: monospace; font-size: 11px; padding: 6px 10px; border-radius: 4px; display: none; pointer-events: none; z-index: 1000;">
+                <div id="debugFPS">FPS: --</div>
+                <div id="debugDPR">DPR: --</div>
+                <div id="debugTier">Tier: --</div>
+                <div id="debugParticles">Particles: --</div>
+            </div>
+        </div>
+        
+        <!-- Visual touch feedback indicator -->
+        <div id="touchFeedback" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 999; display: none;">
+            <div style="font-size: 72px; opacity: 0.8; text-shadow: 0 0 10px rgba(255,255,255,0.8); transition: opacity 0.15s;">⬆</div>
         </div>
         
         <div id="startScreen" class="overlay">
@@ -537,6 +549,42 @@
         let scene, camera, renderer;
     // detect touch-capable/mobile devices for responsive behavior
     const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        
+        // Device detection for performance optimization
+        function detectDeviceTier() {
+            // Detect device tier (low/mid/high) to apply appropriate performance settings
+            try {
+                const ua = navigator.userAgent.toLowerCase();
+                const cores = navigator.hardwareConcurrency || 2;
+                const ram = navigator.deviceMemory || 2; // GB (Chrome/Edge only)
+                
+                // Low-end indicators
+                const isOldAndroid = /android\s[4-6]\./i.test(ua);
+                const isOldIOS = /iphone\sos\s[8-9]_/i.test(ua) || /iphone\sos\s10_/i.test(ua);
+                const lowCores = cores <= 2;
+                const lowRAM = ram <= 2;
+                
+                // High-end indicators (recent flagships)
+                const highCores = cores >= 6;
+                const highRAM = ram >= 6;
+                const recentFlagship = /iphone\sos\s1[5-9]_|android\s1[1-9]/i.test(ua);
+                
+                if (isOldAndroid || isOldIOS || (lowCores && lowRAM)) {
+                    return 'low';
+                } else if (highCores && highRAM) {
+                    return 'high';
+                } else if (recentFlagship) {
+                    return 'high';
+                } else {
+                    return 'mid';
+                }
+            } catch (e) {
+                return 'mid'; // default to mid-tier on detection failure
+            }
+        }
+        
+        const deviceTier = isMobile ? detectDeviceTier() : 'high';
+        
         let playerGroup;
         let corridorSegments = [];
         let torchLights = [];
@@ -562,14 +610,14 @@
             slideDuration: 500,
             // performance-related toggles and caps
             performance: {
-                maxPixelRatio: 1.5, // allow higher DPR on modern phones for sharper visuals (capped)
+                maxPixelRatio: deviceTier === 'low' ? 1.0 : (deviceTier === 'mid' ? 1.25 : 1.5),
                 enableShadows: false, // disable shadows by default for better FPS
                 maxShadowMapSize: 1024,
-                ambientDustCount: 80, // ambient particle count (reduced on mobile)
+                ambientDustCount: deviceTier === 'low' ? 30 : (deviceTier === 'mid' ? 50 : 80),
                 // particle and update tuning
-                particleBurstLimit: 12, // max particles spawned per burst (can be lowered on low-end devices)
-                particleUpdateSkip: 1, // update particle positions every N frames (1 = every frame)
-                dustUpdateSkip: 1 // update ambient dust positions every N frames
+                particleBurstLimit: deviceTier === 'low' ? 6 : (deviceTier === 'mid' ? 10 : 12),
+                particleUpdateSkip: deviceTier === 'low' ? 2 : 1, // skip every other frame on low-end
+                dustUpdateSkip: deviceTier === 'low' ? 2 : 1
             }
         };
 
@@ -654,6 +702,112 @@
     let touchStartY = 0;
     // timestamp when touch began (ms) - used to detect fast flicks
     let touchStartTs = 0;
+
+    // Visual feedback and debug state
+    let debugOverlayVisible = false;
+    let lastFpsUpdate = 0;
+    let fpsFrameCount = 0;
+    let currentFPS = 60;
+    
+    // Helper: show visual touch feedback
+    function showTouchFeedback(direction) {
+        try {
+            const feedback = document.getElementById('touchFeedback');
+            const icon = feedback.querySelector('div');
+            if (!feedback || !icon) return;
+            
+            // Set icon based on direction
+            const icons = {
+                'up': '⬆',
+                'down': '⬇',
+                'left': '⬅',
+                'right': '➡'
+            };
+            icon.textContent = icons[direction] || '•';
+            
+            // Show with animation
+            feedback.style.display = 'block';
+            icon.style.opacity = '0.9';
+            
+            // Vibrate on supported devices
+            if (navigator.vibrate) {
+                navigator.vibrate(15); // subtle 15ms haptic
+            }
+            
+            // Hide after brief delay
+            setTimeout(() => {
+                icon.style.opacity = '0';
+                setTimeout(() => {
+                    feedback.style.display = 'none';
+                }, 150);
+            }, 120);
+        } catch (e) {
+            // ignore feedback errors
+        }
+    }
+    
+    // Helper: flash player to indicate input registered
+    function flashPlayer() {
+        try {
+            if (!playerGroup) return;
+            // Brief emissive pulse on player materials
+            playerGroup.traverse((node) => {
+                if (node.isMesh && node.material) {
+                    const mats = Array.isArray(node.material) ? node.material : [node.material];
+                    mats.forEach((m) => {
+                        if (m.emissive) {
+                            const orig = m.emissive.getHex();
+                            m.emissive.setHex(0xFFFFFF);
+                            setTimeout(() => {
+                                m.emissive.setHex(orig);
+                            }, 80);
+                        }
+                    });
+                }
+            });
+        } catch (e) {
+            // ignore flash errors
+        }
+    }
+    
+    // Toggle debug overlay (triple-tap top-left corner to enable)
+    let debugTapCount = 0;
+    let debugTapTimeout = null;
+    function handleDebugToggle(x, y) {
+        if (x < 100 && y < 100) {
+            debugTapCount++;
+            clearTimeout(debugTapTimeout);
+            debugTapTimeout = setTimeout(() => { debugTapCount = 0; }, 1000);
+            
+            if (debugTapCount >= 3) {
+                debugOverlayVisible = !debugOverlayVisible;
+                const overlay = document.getElementById('debugOverlay');
+                if (overlay) overlay.style.display = debugOverlayVisible ? 'block' : 'none';
+                debugTapCount = 0;
+            }
+        }
+    }
+    
+    // Update debug overlay
+    function updateDebugOverlay() {
+        if (!debugOverlayVisible) return;
+        try {
+            const now = performance.now();
+            if (now - lastFpsUpdate > 500) { // update twice per second
+                currentFPS = Math.round((fpsFrameCount * 1000) / (now - lastFpsUpdate));
+                fpsFrameCount = 0;
+                lastFpsUpdate = now;
+                
+                document.getElementById('debugFPS').textContent = `FPS: ${currentFPS}`;
+                document.getElementById('debugDPR').textContent = `DPR: ${currentPixelRatio.toFixed(2)}`;
+                document.getElementById('debugTier').textContent = `Tier: ${deviceTier}`;
+                document.getElementById('debugParticles').textContent = `Particles: ${particles.length}/${config.performance.particleBurstLimit}`;
+            }
+            fpsFrameCount++;
+        } catch (e) {
+            // ignore debug errors
+        }
+    }
 
     // Persistent storage key and totals
     const STORAGE_KEY = 'ancientTemple_save_v1';
@@ -1733,12 +1887,16 @@
             collectibles.push(mesh);
         }
 
-        // Create particles
+        // Create particles (respecting burst limit for performance)
         function createParticles(position, count, color) {
+            // Limit particle count based on device tier
+            const maxCount = config.performance.particleBurstLimit || 12;
+            const actualCount = Math.min(count, maxCount);
+            
             const positions = [];
             const velocities = [];
             
-            for (let i = 0; i < count; i++) {
+            for (let i = 0; i < actualCount; i++) {
                 positions.push(
                     position.x + (Math.random() - 0.5) * 1,
                     position.y + (Math.random() - 0.5) * 1,
@@ -2397,7 +2555,7 @@
                 }
             }
             
-            // Update particles
+            // Update particles (with update skip on low-end devices)
             particles.forEach((p, index) => {
                 p.userData.life -= 0.025;
                 p.material.opacity = p.userData.life;
@@ -2406,31 +2564,38 @@
                     scene.remove(p);
                     particles.splice(index, 1);
                 } else {
-                    const positions = p.geometry.attributes.position.array;
-                    const velocities = p.userData.velocityData;
-                    for (let i = 0; i < positions.length; i += 3) {
-                        positions[i] += velocities[i];
-                        positions[i + 1] += velocities[i + 1] - 0.015;
-                        positions[i + 2] += velocities[i + 2];
+                    // Skip position updates on low-end devices for better FPS
+                    const shouldUpdate = config.performance.particleUpdateSkip === 1 || (frameCount % config.performance.particleUpdateSkip === 0);
+                    if (shouldUpdate) {
+                        const positions = p.geometry.attributes.position.array;
+                        const velocities = p.userData.velocityData;
+                        for (let i = 0; i < positions.length; i += 3) {
+                            positions[i] += velocities[i];
+                            positions[i + 1] += velocities[i + 1] - 0.015;
+                            positions[i + 2] += velocities[i + 2];
+                        }
+                        p.geometry.attributes.position.needsUpdate = true;
                     }
-                    p.geometry.attributes.position.needsUpdate = true;
                 }
             });
             
-            // Update ambient dust
+            // Update ambient dust (with update skip on low-end devices)
             if (ambientDust) {
                 ambientDust.position.z += scrollSpeed;
                 if (ambientDust.position.z > 50) {
                     ambientDust.position.z = -50;
                 }
                 
-                const positions = ambientDust.geometry.attributes.position.array;
-                for (let i = 0; i < positions.length; i += 3) {
-                    positions[i + 1] += (Math.random() - 0.5) * 0.02;
-                    if (positions[i + 1] > config.corridorHeight) positions[i + 1] = 0;
-                    if (positions[i + 1] < 0) positions[i + 1] = config.corridorHeight;
+                const shouldUpdate = config.performance.dustUpdateSkip === 1 || (frameCount % config.performance.dustUpdateSkip === 0);
+                if (shouldUpdate) {
+                    const positions = ambientDust.geometry.attributes.position.array;
+                    for (let i = 0; i < positions.length; i += 3) {
+                        positions[i + 1] += (Math.random() - 0.5) * 0.02;
+                        if (positions[i + 1] > config.corridorHeight) positions[i + 1] = 0;
+                        if (positions[i + 1] < 0) positions[i + 1] = config.corridorHeight;
+                    }
+                    ambientDust.geometry.attributes.position.needsUpdate = true;
                 }
-                ambientDust.geometry.attributes.position.needsUpdate = true;
             }
             
             // Torch flicker
@@ -2607,6 +2772,7 @@
 
             update();
             renderer.render(scene, camera);
+            updateDebugOverlay(); // Update FPS counter and debug info
         }
 
         // Touch/Swipe controls
@@ -2616,6 +2782,8 @@
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
                 try { touchStartTs = performance.now(); } catch (ex) { touchStartTs = Date.now(); }
+                // Check for debug toggle
+                handleDebugToggle(touchStartX, touchStartY);
             } else if (gameState === 'gameover') {
                 restartGame();
             }
@@ -2639,15 +2807,29 @@
 
                     // Horizontal swipe
                     if (Math.abs(deltaX) > Math.abs(deltaY) * horizFactor && (Math.abs(deltaX) > swipeMin || (swipeTime < 250 && Math.abs(deltaX) > fastSwipeMin))) {
-                        if (deltaX > 0) switchLane('right');
-                        else switchLane('left');
+                        if (deltaX > 0) {
+                            switchLane('right');
+                            showTouchFeedback('right');
+                            flashPlayer();
+                        } else {
+                            switchLane('left');
+                            showTouchFeedback('left');
+                            flashPlayer();
+                        }
                         return;
                     }
 
                     // Vertical swipe
                     if (Math.abs(deltaY) > Math.abs(deltaX) * horizFactor && (Math.abs(deltaY) > swipeMin || (swipeTime < 250 && Math.abs(deltaY) > fastSwipeMin))) {
-                        if (deltaY < 0) jump(); // Swipe up
-                        else slide(); // Swipe down
+                        if (deltaY < 0) {
+                            jump(); // Swipe up
+                            showTouchFeedback('up');
+                            flashPlayer();
+                        } else {
+                            slide(); // Swipe down
+                            showTouchFeedback('down');
+                            flashPlayer();
+                        }
                         return;
                     }
 
@@ -2660,11 +2842,17 @@
                         if (localX < w * 0.33) {
                             // prefer a single-step left move
                             switchLane('left');
+                            showTouchFeedback('left');
+                            flashPlayer();
                         } else if (localX > w * 0.66) {
                             switchLane('right');
+                            showTouchFeedback('right');
+                            flashPlayer();
                         } else {
                             // center tap performs jump
                             jump();
+                            showTouchFeedback('up');
+                            flashPlayer();
                         }
                     }
                     // record that a touch-based input was just handled so pointer events that
@@ -2691,8 +2879,15 @@
 
                 // if horizontal movement dominates and exceeds a smaller threshold, trigger a single-step lane switch
                 if (Math.abs(deltaX) > Math.abs(deltaY) * horizFactor && Math.abs(deltaX) > swipeMinMove) {
-                    if (deltaX > 0) switchLane('right');
-                    else switchLane('left');
+                    if (deltaX > 0) {
+                        switchLane('right');
+                        showTouchFeedback('right');
+                        flashPlayer();
+                    } else {
+                        switchLane('left');
+                        showTouchFeedback('left');
+                        flashPlayer();
+                    }
                     // move the touch start forward so continuous move doesn't trigger multiple unintended switches
                     touchStartX = touchX;
                     try { lastTouchTime = performance.now(); } catch (ex) { lastTouchTime = Date.now(); }
