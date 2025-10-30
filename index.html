@@ -709,65 +709,21 @@
     let fpsFrameCount = 0;
     let currentFPS = 60;
     
-    // Helper: show visual touch feedback
+    // Helper: show visual touch feedback (haptic only, no visible feedback)
     function showTouchFeedback(direction) {
         try {
-            const feedback = document.getElementById('touchFeedback');
-            const icon = feedback.querySelector('div');
-            if (!feedback || !icon) return;
-            
-            // Set icon based on direction
-            const icons = {
-                'up': '⬆',
-                'down': '⬇',
-                'left': '⬅',
-                'right': '➡'
-            };
-            icon.textContent = icons[direction] || '•';
-            
-            // Show with animation
-            feedback.style.display = 'block';
-            icon.style.opacity = '0.9';
-            
-            // Vibrate on supported devices
+            // Vibrate on supported devices for tactile feedback
             if (navigator.vibrate) {
                 navigator.vibrate(15); // subtle 15ms haptic
             }
-            
-            // Hide after brief delay
-            setTimeout(() => {
-                icon.style.opacity = '0';
-                setTimeout(() => {
-                    feedback.style.display = 'none';
-                }, 150);
-            }, 120);
         } catch (e) {
             // ignore feedback errors
         }
     }
     
-    // Helper: flash player to indicate input registered
+    // Helper: flash player removed - was causing character to turn white
     function flashPlayer() {
-        try {
-            if (!playerGroup) return;
-            // Brief emissive pulse on player materials
-            playerGroup.traverse((node) => {
-                if (node.isMesh && node.material) {
-                    const mats = Array.isArray(node.material) ? node.material : [node.material];
-                    mats.forEach((m) => {
-                        if (m.emissive) {
-                            const orig = m.emissive.getHex();
-                            m.emissive.setHex(0xFFFFFF);
-                            setTimeout(() => {
-                                m.emissive.setHex(orig);
-                            }, 80);
-                        }
-                    });
-                }
-            });
-        } catch (e) {
-            // ignore flash errors
-        }
+        // Disabled to preserve character appearance
     }
     
     // Toggle debug overlay (triple-tap top-left corner to enable)
