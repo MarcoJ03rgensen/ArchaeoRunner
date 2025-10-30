@@ -1851,6 +1851,13 @@
             for (let i = 0; i < 6; i++) {
                 createCorridorSegment(-i * config.segmentLength);
             }
+
+            // On mobile, shorten the lane switch duration for snappier response
+            try {
+                if (isMobile) {
+                    config.laneSwitchDuration = Math.min(config.laneSwitchDuration || 220, 120);
+                }
+            } catch (e) { /* ignore */ }
             
             if (playerGroup) {
                 playerGroup.position.set(LANES.CENTER, 1, 0);
@@ -2631,6 +2638,26 @@
                     try { lastTouchTime = performance.now(); } catch (e) { lastTouchTime = Date.now(); }
                 }
             });
+
+            // Start lane switch earlier during a clear horizontal touchmove so the
+            // character responds as the user swipes instead of waiting for touchend.
+            canvas.addEventListener('touchmove', (e) => {
+                try { e.preventDefault(); } catch (ex) {}
+                if (gameState !== 'playing') return;
+                if (!e.touches || e.touches.length === 0) return;
+                const touchX = e.touches[0].clientX;
+                const deltaX = touchX - touchStartX;
+                const swipeMin = 40;
+                const horizFactor = 1.2;
+                // if horizontal movement dominates and exceeds threshold, trigger a single-step lane switch
+                if (Math.abs(deltaX) > Math.abs( (e.touches[0].clientY || 0) - touchStartY ) * horizFactor && Math.abs(deltaX) > swipeMin) {
+                    if (deltaX > 0) switchLane('right');
+                    else switchLane('left');
+                    // move the touch start forward so continuous move doesn't trigger multiple unintended switches
+                    touchStartX = touchX;
+                    try { lastTouchTime = performance.now(); } catch (ex) { lastTouchTime = Date.now(); }
+                }
+            }, {passive:false});
         
         // Mouse controls (for desktop)
         canvas.addEventListener('click', () => {
