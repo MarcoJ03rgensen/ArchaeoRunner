@@ -103,9 +103,11 @@
             z-index: 10;
             transition: opacity 0.3s ease;
             /* small safe inset so the title won't hit the very top */
-            padding-top: 18px;
+            padding: 18px 12px env(safe-area-inset-bottom, 18px);
             box-sizing: border-box;
-            overflow: hidden; /* prevent scrolling; content will scale instead */
+            /* Allow scrolling on small viewports so content isn't clipped */
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .overlay.hidden {
