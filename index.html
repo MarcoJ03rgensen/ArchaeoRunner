@@ -2630,6 +2630,12 @@
             });
 
             canvas.addEventListener('pointerup', (e) => {
+                // On touch-capable mobile devices we prefer the touch handlers and
+                // skip pointer-based touch processing entirely. This avoids race
+                // conditions where both touchend and pointerup fire and cause
+                // two lane switches for one user gesture.
+                if (e.pointerType === 'touch' && isMobile) return;
+
                 // If a touch event was handled very recently, ignore pointerup to avoid
                 // processing the same user action twice (some browsers emit both).
                 if (e.pointerType === 'touch') {
@@ -2639,6 +2645,7 @@
                         if (Date.now() - lastTouchTime < 700) return;
                     }
                 }
+
                 if (e.pointerType === 'touch' && gameState === 'playing') {
                     const touchEndX = e.clientX;
                     const touchEndY = e.clientY;
