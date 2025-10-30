@@ -622,6 +622,8 @@
     // timestamp when the current lane switch began (ms). 0 = no active switch
     let laneSwitchStartTime = 0;
         let slideTimer = 0;
+        // Prevent multiple animation loops from being started (duplicate starts made it feel too fast)
+        let animationRunning = false;
         
         // Touch/swipe variables
         let touchStartX = 0;
@@ -1852,6 +1854,9 @@
 
         // Start game
         function startGame() {
+            // Prevent duplicate starts which cause multiple animation loops and a faster perceived game speed
+            if (animationRunning) return;
+            animationRunning = true;
             gameState = 'playing';
             startScreen.classList.add('hidden');
             gameOverScreen.classList.add('hidden');
@@ -1878,6 +1883,8 @@
         // Game over
         function gameOver() {
             gameState = 'gameover';
+            // allow future runs to start a single animation loop again
+            animationRunning = false;
             hud.classList.remove('active');
             // show floating shop on game over
             try { updateFloatingShopVisibility(); } catch(e) {}
