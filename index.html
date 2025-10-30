@@ -624,6 +624,8 @@
         let slideTimer = 0;
         // Prevent multiple animation loops from being started (duplicate starts made it feel too fast)
         let animationRunning = false;
+    // Timestamp of the last processed touch event (ms) — used to dedupe pointer events
+    let lastTouchTime = 0;
         
         // Touch/swipe variables
         let touchStartX = 0;
@@ -2566,6 +2568,9 @@
                             jump();
                         }
                     }
+                    // record that a touch-based input was just handled so pointer events that
+                    // may follow (on some browsers) are ignored for a short window
+                    try { lastTouchTime = performance.now(); } catch (e) { lastTouchTime = Date.now(); }
                 }
             });
         
@@ -2625,6 +2630,15 @@
             });
 
             canvas.addEventListener('pointerup', (e) => {
+                // If a touch event was handled very recently, ignore pointerup to avoid
+                // processing the same user action twice (some browsers emit both).
+                if (e.pointerType === 'touch') {
+                    try {
+                        if (performance.now() - lastTouchTime < 700) return;
+                    } catch (ex) {
+                        if (Date.now() - lastTouchTime < 700) return;
+                    }
+                }
                 if (e.pointerType === 'touch' && gameState === 'playing') {
                     const touchEndX = e.clientX;
                     const touchEndY = e.clientY;
