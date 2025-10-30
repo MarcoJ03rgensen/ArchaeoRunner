@@ -561,7 +561,7 @@
         ,
             // performance-related toggles and caps
             performance: {
-                maxPixelRatio: 1.5, // cap DPR to avoid high GPU loads on retina displays
+                maxPixelRatio: 2.0, // allow higher DPR on modern phones for sharper visuals (capped)
                 enableShadows: false, // disable shadows by default for better FPS
                 maxShadowMapSize: 1024,
                 ambientDustCount: 80 // reduce ambient particles
@@ -2524,27 +2524,50 @@
         });
         
         canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (gameState === 'playing') {
-                const touchEndX = e.changedTouches[0].clientX;
-                const touchEndY = e.changedTouches[0].clientY;
-                
-                const deltaX = touchEndX - touchStartX;
-                const deltaY = touchEndY - touchStartY;
-                
-                const threshold = 30;
-                
-                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+                e.preventDefault();
+                if (gameState === 'playing') {
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+
+                    // thresholds in CSS pixels
+                    const swipeMin = 40; // require a larger motion to count as a swipe on phones
+                    const tapMax = 18; // small movements count as taps
+                    const horizFactor = 1.3; // horizontal movement must dominate vertical by this factor
+
                     // Horizontal swipe
-                    if (deltaX > 0) switchLane('right');
-                    else switchLane('left');
-                } else if (Math.abs(deltaY) > threshold) {
+                    if (Math.abs(deltaX) > Math.abs(deltaY) * horizFactor && Math.abs(deltaX) > swipeMin) {
+                        if (deltaX > 0) switchLane('right');
+                        else switchLane('left');
+                        return;
+                    }
+
                     // Vertical swipe
-                    if (deltaY < 0) jump(); // Swipe up
-                    else slide(); // Swipe down
+                    if (Math.abs(deltaY) > Math.abs(deltaX) * horizFactor && Math.abs(deltaY) > swipeMin) {
+                        if (deltaY < 0) jump(); // Swipe up
+                        else slide(); // Swipe down
+                        return;
+                    }
+
+                    // Treat small movement as a tap: use tap zones for lane selection to improve hit accuracy
+                    const rect = canvas.getBoundingClientRect();
+                    const localX = touchEndX - rect.left;
+                    const w = rect.width;
+                    if (Math.abs(deltaX) <= tapMax && Math.abs(deltaY) <= tapMax) {
+                        // left / center / right thirds
+                        if (localX < w * 0.33) {
+                            // prefer a single-step left move
+                            switchLane('left');
+                        } else if (localX > w * 0.66) {
+                            switchLane('right');
+                        } else {
+                            // center tap performs jump
+                            jump();
+                        }
+                    }
                 }
-            }
-        });
+            });
         
         // Mouse controls (for desktop)
         canvas.addEventListener('click', () => {
@@ -2607,16 +2630,30 @@
                     const touchEndY = e.clientY;
                     const deltaX = touchEndX - touchStartX;
                     const deltaY = touchEndY - touchStartY;
-                    const threshold = 30;
-                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+
+                    const swipeMin = 40;
+                    const tapMax = 18;
+                    const horizFactor = 1.3;
+
+                    if (Math.abs(deltaX) > Math.abs(deltaY) * horizFactor && Math.abs(deltaX) > swipeMin) {
                         if (deltaX > 0) switchLane('right');
                         else switchLane('left');
-                    } else if (Math.abs(deltaY) > threshold) {
+                        return;
+                    }
+
+                    if (Math.abs(deltaY) > Math.abs(deltaX) * horizFactor && Math.abs(deltaY) > swipeMin) {
                         if (deltaY < 0) jump();
                         else slide();
-                    } else {
-                        // tap -> jump
-                        jump();
+                        return;
+                    }
+
+                    const rect = canvas.getBoundingClientRect();
+                    const localX = touchEndX - rect.left;
+                    const w = rect.width;
+                    if (Math.abs(deltaX) <= tapMax && Math.abs(deltaY) <= tapMax) {
+                        if (localX < w * 0.33) switchLane('left');
+                        else if (localX > w * 0.66) switchLane('right');
+                        else jump();
                     }
                 }
             });
