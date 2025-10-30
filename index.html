@@ -1139,9 +1139,9 @@
             
             // Reduce GPU load by capping devicePixelRatio and turning off expensive features by default
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
-            // Lower pixel ratio on mobile to reduce GPU pressure and keep performance stable
+            // Compute pixel ratio using configured cap. Allow mobile devices to reach the
+            // configured maxPixelRatio so visuals on phones match desktop quality.
             let pixelRatio = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
-            if (isMobile) pixelRatio = Math.min(pixelRatio, 1);
             renderer.setPixelRatio(pixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = !!config.performance.enableShadows;
@@ -2668,7 +2668,10 @@
 
             function updateTouchVisibility() {
                 if (!touchControls) return;
-                if (isMobile && (gameState === 'start' || gameState === 'gameover' || gameState === 'playing')) {
+                // Hide the on-screen grouped touch buttons for touch-capable devices.
+                // We want touch devices to use full-screen gestures (swipe/tap) only.
+                // Show touch-control buttons only on non-touch platforms (e.g., desktop) for debugging.
+                if (!isMobile && (gameState === 'start' || gameState === 'gameover' || gameState === 'playing')) {
                     touchControls.style.display = 'flex';
                 } else {
                     touchControls.style.display = 'none';
