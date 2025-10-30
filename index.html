@@ -581,6 +581,21 @@
         let collectibles = [];
         let particles = [];
         let playerVelocity = 0;
+        // Adaptive performance state
+        let currentPixelRatio = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
+        let perfState = {
+            frameTimes: [],
+            lastFrameTs: performance && performance.now ? performance.now() : Date.now(),
+            checkInterval: 1000, // ms
+            lastCheck: performance && performance.now ? performance.now() : Date.now(),
+            lowFpsThreshold: 30, // if FPS drops below this, reduce quality
+            highFpsThreshold: 50, // restore quality when above this
+            minPixelRatio: 1,
+            maxPixelRatio: config.performance.maxPixelRatio || 1.5,
+            reducedDustCount: Math.max(16, Math.floor((config.performance.ambientDustCount || 80) * 0.25)),
+            normalDustCount: config.performance.ambientDustCount || 80,
+            loweredOnce: false
+        };
         let isJumping = false;
         let isSliding = false;
         let currentLane = 'CENTER';
@@ -1143,10 +1158,10 @@
             
             // Reduce GPU load by capping devicePixelRatio and turning off expensive features by default
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
-            // Compute pixel ratio using configured cap. Allow mobile devices to reach the
-            // configured maxPixelRatio so visuals on phones match desktop quality.
-            let pixelRatio = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
-            renderer.setPixelRatio(pixelRatio);
+            // Compute initial pixel ratio and store in currentPixelRatio so adaptive code can adjust it
+            const initialPR = Math.min(window.devicePixelRatio || 1, config.performance.maxPixelRatio);
+            currentPixelRatio = initialPR;
+            renderer.setPixelRatio(currentPixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = !!config.performance.enableShadows;
             if (renderer.shadowMap.enabled) {
@@ -2512,6 +2527,47 @@
         function animate() {
             if (gameState !== 'playing') return;
             requestAnimationFrame(animate);
+
+            // Perf timing
+            const now = performance && performance.now ? performance.now() : Date.now();
+            const dt = now - (perfState.lastFrameTs || now);
+            perfState.lastFrameTs = now;
+            // keep a rolling sample of frame times (clamp length)
+            perfState.frameTimes.push(dt);
+            if (perfState.frameTimes.length > 120) perfState.frameTimes.shift();
+
+            // Periodically evaluate average frame time and adapt settings
+            if (now - perfState.lastCheck >= perfState.checkInterval) {
+                perfState.lastCheck = now;
+                const sum = perfState.frameTimes.reduce((s, v) => s + v, 0);
+                const avg = perfState.frameTimes.length ? (sum / perfState.frameTimes.length) : dt;
+                const fps = avg > 0 ? (1000 / avg) : 60;
+                // If FPS is low, reduce pixel ratio and particle/dust counts
+                if (fps < perfState.lowFpsThreshold) {
+                    // degrade visuals
+                    if (currentPixelRatio > perfState.minPixelRatio) {
+                        currentPixelRatio = Math.max(perfState.minPixelRatio, currentPixelRatio / 1.5);
+                        try { renderer.setPixelRatio(currentPixelRatio); renderer.setSize(window.innerWidth, window.innerHeight); } catch(e){}
+                    }
+                    if (!perfState.loweredOnce) {
+                        config.performance.ambientDustCount = perfState.reducedDustCount;
+                        if (ambientDust) { scene.remove(ambientDust); ambientDust = createAmbientDust(); }
+                        perfState.loweredOnce = true;
+                    }
+                } else if (fps > perfState.highFpsThreshold) {
+                    // try to restore better quality
+                    if (currentPixelRatio < perfState.maxPixelRatio) {
+                        currentPixelRatio = Math.min(perfState.maxPixelRatio, currentPixelRatio * 1.25);
+                        try { renderer.setPixelRatio(currentPixelRatio); renderer.setSize(window.innerWidth, window.innerHeight); } catch(e){}
+                    }
+                    if (perfState.loweredOnce && config.performance.ambientDustCount !== perfState.normalDustCount) {
+                        config.performance.ambientDustCount = perfState.normalDustCount;
+                        if (ambientDust) { scene.remove(ambientDust); ambientDust = createAmbientDust(); }
+                        perfState.loweredOnce = false;
+                    }
+                }
+            }
+
             update();
             renderer.render(scene, camera);
         }
