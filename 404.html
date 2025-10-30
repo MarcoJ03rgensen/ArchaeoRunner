@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Page not found</title>
+  <!-- Redirect to site root so SPA routes work on GitHub Pages -->
+  <meta http-equiv="refresh" content="0; url=/ArchaeoRunner/" />
+  <script>
+    // JS fallback redirect that preserves any hash or search
+    (function(){
+      try {
+        var base = '/ArchaeoRunner/';
+        var dest = base + (location.hash || '');
+        location.replace(dest);
+      } catch(e) {
+        location.replace('/ArchaeoRunner/');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting to <a href="/ArchaeoRunner/">the game</a>...</p>
+</body>
+</html>
